@@ -9,7 +9,29 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Question 1
+
+```{r}
+rm(list=ls())
+set.seed(1)
+x <- rnorm(100,0,1)
+x <- sort(x)
+
+#mu = 5 + sin(3 * pi * (x-0.6))
+#y <-  rnorm(100, mean = mu, sd = 0.5^2)
+
+y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(100, sd = 0.5^2)
+
+plot(y~x)
+
+```
+
+
 ```{r}
 pulsar_data = read.csv2("Pulsar.csv", header = TRUE, sep=",")
 head(pulsar_data)
+```
+
+```{r}
+
 ```
