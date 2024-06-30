@@ -12,10 +12,48 @@ knitr::opts_chunk$set(echo = TRUE)
 # Question 1
 
 ```{r}
+library(ggplot2)
+library(tidyverse)
+
 rm(list=ls())
 set.seed(1)
-x <- rnorm(100,0,1)
-x <- sort(x)
+
+# Define x
+x = seq(0,1, length.out=100)
+
+# We choose equally spaced notes over the range [0,1]
+knots = seq(0,1,length.out=6)
+
+# Basis functions per Woods formulation
+
+b1 = function(x) {
+  rep(1, length(x))
+}
+
+b2 = function(x){
+  x
+}
+
+R_x_z = function(x, z) {
+  ((z - 0.5)^2 - 1/12) * ((x - 0.5)^2 - 1/12) / 4 - 
+  ((abs(x - z) - 0.5)^4 - 0.5 * (abs(x - z) - 0.5)^2 + 7/240) / 24
+}
+
+# Construct the basis matrix
+
+basis_matrix = cbind(b1(x), b2(x),sapply(knots[-c(1,length(knots))],function(k) R_x_z(x,k)))
+
+basis_design_matrix = basis_matrix %>% as_tibble()
+                  
+colnames(basis_design_matrix) = c("b1", "b2", "b3", "b4", paste0("b", 5:(4 + length(knots))))
+basis_design_matrix = basis_design_matrix %>%
+                       mutate(x = x)
+```
+
+
+```{r}
+
+
 
 #mu = 5 + sin(3 * pi * (x-0.6))
 #y <-  rnorm(100, mean = mu, sd = 0.5^2)
@@ -23,8 +61,8 @@ x <- sort(x)
 y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(100, sd = 0.5^2)
 
 plot(y~x)
-
 ```
+
 
 
 ```{r}

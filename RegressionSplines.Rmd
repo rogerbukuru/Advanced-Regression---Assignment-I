@@ -1,0 +1,889 @@
+---
+title: "Regression Splines"
+author: "Roger Bukuru"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction to Regression Splines
+
+Regression splines are a powerful tool in statistical modeling, allowing for flexible modeling of relationships between variables by partitioning the data into segments and fitting simple models within each segment. Let's explore the basic concepts, construction, and application of regression splines step by step.
+
+#### Basic Concepts
+
+1. **Splines**: 
+   - A spline is a piecewise polynomial function that maintains smoothness at the points where the pieces connect, known as knots.
+   - The simplest spline is a piecewise linear spline, which connects points with straight lines.
+
+2. **Knots**:
+   - Knots are the points at which the data is divided into different regions.
+   - The placement and number of knots influence the flexibility and complexity of the spline.
+
+3. **Polynomial Splines**:
+   - These are splines where each segment is a polynomial.
+   - Common choices include linear, quadratic, and cubic splines. Cubic splines are particularly popular due to their smoothness properties.
+
+#### Constructing Regression Splines
+
+To construct a regression spline, follow these steps:
+
+1. **Select Knots**: Decide on the number and placement of knots. Knots can be placed at fixed intervals, based on data quantiles, or using more advanced methods like cross-validation.
+2. **Fit Polynomial Segments**: Within each segment defined by the knots, fit a polynomial to the data. For instance, a cubic spline would fit a cubic polynomial.
+3. **Ensure Continuity and Smoothness**: Ensure that the polynomial segments join smoothly at the knots. For cubic splines, both the first and second derivatives should be continuous at the knots.
+
+#### Mathematical Representation
+
+Consider a cubic spline with \( K \) knots \( \{ \xi_1, \xi_2, \ldots, \xi_K \} \). The cubic spline can be represented as:
+
+\[ S(x) = \beta_0 + \beta_1 x + \beta_2 x^2 + \beta_3 x^3 + \sum_{k=1}^{K} \beta_{3+k} (x - \xi_k)_+^3 \]
+
+where \( (x - \xi_k)_+^3 \) is the truncated power function, which is zero for \( x < \xi_k \) and \( (x - \xi_k)^3 \) for \( x \geq \xi_k \).
+
+#### Example in R
+
+Here's an example of fitting a cubic regression spline in R using the `splines` package:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Fit a cubic spline with 4 knots
+knots <- c(2, 4, 6, 8)
+spline_fit <- lm(y ~ bs(x, knots = knots, degree = 3))
+
+# Plot the data and the fitted spline
+plot(x, y, main = "Cubic Regression Spline", pch = 16)
+lines(x, predict(spline_fit, newdata = data.frame(x = x)), col = "red", lwd = 2)
+```
+
+### References and Further Reading
+
+1. **Splines**:
+   - For an in-depth explanation of regression splines and their properties, refer to the notes on multidimensional splines【10†source】.
+   - A comprehensive guide to splines can be found in the document "Splines1-2023.pdf"【13†source】.
+
+2. **Wavelets and Functional Data Analysis**:
+   - Although not directly about regression splines, wavelet methods can offer insights into non-parametric regression techniques. See "ch6-Wavelets.pdf"【9†source】.
+   - For applications of splines in functional data analysis, refer to "ch6-FDA.pdf"【11†source】.
+
+3. **Generalized Additive Models (GAMs)**:
+   - Regression splines are a key component of GAMs. For more details, see "ch3-gams.pdf"【12†source】.
+
+4. **Multivariate Adaptive Regression Splines (MARS)**:
+   - MARS extends the concept of splines to high-dimensional data. Learn more in "ch4-MARS.pdf"【14†source】.
+
+By understanding these concepts and practicing with examples, you'll gain a solid foundation in using regression splines for statistical modeling.
+
+Certainly! Let's re-render the example of a cubic spline with first and second derivative continuity.
+
+### Mathematical Explanation
+
+Consider a cubic spline \( S(x) \) with \( K \) knots at positions \( \xi_1, \xi_2, \ldots, \xi_K \). The cubic spline is defined piecewise, with each piece being a cubic polynomial:
+
+\[ S(x) = \begin{cases} 
+    P_1(x), & x < \xi_1 \\
+    P_2(x), & \xi_1 \leq x < \xi_2 \\
+    \vdots \\
+    P_{K+1}(x), & x \geq \xi_K 
+\end{cases} \]
+
+where each \( P_i(x) \) is a cubic polynomial of the form:
+
+\[ P_i(x) = \beta_{i0} + \beta_{i1} x + \beta_{i2} x^2 + \beta_{i3} x^3 \]
+
+### Continuity Conditions
+
+To ensure smoothness at the knots, the spline must satisfy the following conditions:
+
+1. **Function Continuity**:
+   - The value of the spline must be the same from the left and the right of each knot:
+   \[ P_i(\xi_i) = P_{i+1}(\xi_i) \]
+
+2. **First Derivative Continuity**:
+   - The first derivative of the spline must be continuous at each knot:
+   \[ P_i'(\xi_i) = P_{i+1}'(\xi_i) \]
+   - This ensures no abrupt changes in slope.
+
+3. **Second Derivative Continuity**:
+   - The second derivative of the spline must be continuous at each knot:
+   \[ P_i''(\xi_i) = P_{i+1}''(\xi_i) \]
+   - This ensures no abrupt changes in curvature.
+
+### Updated R Code Example
+
+Here's the R code example with added vertical lines to indicate the knots:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Fit a cubic spline with 4 knots
+knots <- c(2, 4, 6, 8)
+spline_fit <- lm(y ~ bs(x, knots = knots, degree = 3))
+
+# Plot the data and the fitted spline
+plot(x, y, main = "Cubic Regression Spline with Knots", pch = 16)
+lines(x, predict(spline_fit, newdata = data.frame(x = x)), col = "red", lwd = 2)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "blue", lty = 2)
+```
+
+### Visual Representation
+
+In the plot generated by the code:
+- The **red line** represents the fitted cubic regression spline.
+- The **blue dashed vertical lines** indicate the positions of the knots.
+
+### Summary
+
+- **Function Continuity**: Ensures that the spline does not have jumps at the knots, i.e., it smoothly passes through the knot points.
+- **First Derivative Continuity**: Ensures the slope is continuous at the knots, avoiding sharp changes in direction.
+- **Second Derivative Continuity**: Ensures the curvature is continuous at the knots, providing an even smoother transition.
+
+This smoothness is crucial in many practical applications, ensuring that the model represents the underlying data trend without introducing artifacts at the knot points.
+
+
+
+### Natural Cubic Splines
+
+#### Definition and Purpose
+
+A natural cubic spline is a type of cubic spline with additional boundary conditions that ensure the spline behaves naturally at the boundaries of the data. This means that the spline is not only smooth within the interval of the data but also exhibits desirable behavior outside the range of the data.
+
+#### Key Characteristics
+
+1. **Cubic Polynomials**: Like standard cubic splines, natural cubic splines are composed of piecewise cubic polynomials between knots.
+2. **Boundary Conditions**: The additional boundary conditions for natural cubic splines are that the second derivatives at the boundaries are set to zero. This ensures that the spline becomes a linear function outside the boundary knots, preventing extrapolation artifacts.
+
+#### Mathematical Formulation
+
+A natural cubic spline \( S(x) \) with knots \( \{ \xi_1, \xi_2, \ldots, \xi_K \} \) satisfies the following conditions:
+
+1. The spline is a piecewise cubic polynomial:
+\[ S(x) = \begin{cases} 
+    P_1(x), & x < \xi_1 \\
+    P_2(x), & \xi_1 \leq x < \xi_2 \\
+    \vdots \\
+    P_{K+1}(x), & x \geq \xi_K 
+\end{cases} \]
+
+2. **Continuity**: The spline is continuous and has continuous first and second derivatives at the knots:
+\[ P_i(\xi_i) = P_{i+1}(\xi_i) \]
+\[ P_i'(\xi_i) = P_{i+1}'(\xi_i) \]
+\[ P_i''(\xi_i) = P_{i+1}''(\xi_i) \]
+
+3. **Natural Boundary Conditions**: The second derivatives at the boundaries are zero:
+\[ S''(\xi_0) = 0 \]
+\[ S''(\xi_{K+1}) = 0 \]
+
+These conditions ensure that the spline is smooth within the range of the data and linear beyond the boundary knots, providing a natural extension of the data trends.
+
+#### Example in R
+
+Here's how to fit a natural cubic spline in R using the `splines` package:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Fit a natural cubic spline with 4 knots
+knots <- c(2, 4, 6, 8)
+natural_spline_fit <- lm(y ~ ns(x, knots = knots))
+
+# Plot the data and the fitted natural cubic spline
+plot(x, y, main = "Natural Cubic Spline with Knots", pch = 16)
+lines(x, predict(natural_spline_fit, newdata = data.frame(x = x)), col = "red", lwd = 2)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "blue", lty = 2)
+```
+
+### Explanation of the Code
+
+- **ns(x, knots = knots)**: This function from the `splines` package generates the natural cubic spline basis functions.
+- **lm(y ~ ns(x, knots = knots))**: This fits a linear model using the natural cubic spline basis functions.
+
+### References
+
+For more detailed information on natural cubic splines, refer to the following sources:
+
+1. **Multidimensional Splines**: Detailed notes on multidimensional splines, including natural cubic splines, can be found in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: A comprehensive guide is available in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Natural splines are often used within the framework of GAMs, as detailed in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Natural splines are also discussed in the context of functional data analysis in "ch6-FDA.pdf"【11†source】.
+
+By understanding natural cubic splines, you gain a tool that provides smooth interpolation within the data range while avoiding unrealistic extrapolations outside the data range, making them highly useful for many practical applications.
+
+
+
+### Basis Functions
+
+#### Definition
+
+Basis functions are a set of functions used to construct a flexible model for a given data set. In the context of splines and other types of regression models, basis functions allow us to represent the underlying relationships between variables in a more flexible and adaptable way than traditional polynomial regression.
+
+#### Role in Splines
+
+For splines, basis functions are the building blocks that combine to form the spline. Each basis function corresponds to a piece of the spline that covers a specific segment of the data. By adjusting the coefficients of these basis functions, we can fit the spline to the data.
+
+### Natural Cubic Spline Basis Functions
+
+Natural cubic splines use a specific set of basis functions to ensure that the resulting spline is both smooth and natural at the boundaries. Let's break down the concept further:
+
+#### Constructing Basis Functions
+
+1. **Piecewise Polynomials**:
+   - In natural cubic splines, each segment between knots is represented by a cubic polynomial.
+   - These cubic polynomials are connected smoothly at the knots.
+
+2. **Boundary Conditions**:
+   - The natural cubic spline basis functions ensure that the second derivatives at the boundary knots are zero, which means the spline flattens out and becomes linear at the boundaries.
+
+3. **Representation**:
+   - A natural cubic spline with \( K \) knots can be represented as:
+   \[
+   S(x) = \beta_0 + \beta_1 x + \beta_2 x^2 + \beta_3 x^3 + \sum_{k=1}^{K} \beta_{k+3} B_k(x)
+   \]
+   where \( B_k(x) \) are the basis functions associated with the knots.
+
+#### Example of Basis Functions for Natural Cubic Splines
+
+To illustrate, consider a set of basis functions \( B_1(x), B_2(x), \ldots, B_K(x) \) for a natural cubic spline. These functions are constructed such that they are:
+
+1. **Zero outside their defined range**: Each basis function \( B_k(x) \) is non-zero only in the vicinity of its corresponding knot \( \xi_k \).
+2. **Smooth transitions**: They ensure smooth transitions at the knots, meaning the first and second derivatives are continuous.
+3. **Natural boundary conditions**: They satisfy the natural boundary conditions, ensuring that the spline becomes linear outside the range of the knots.
+
+### Basis Functions in R
+
+In R, the `ns` function from the `splines` package generates the basis functions for a natural cubic spline. Here's how you can use it:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Generate the natural spline basis functions with 4 knots
+knots <- c(2, 4, 6, 8)
+ns_basis <- ns(x, knots = knots)
+
+# Fit a linear model using the natural spline basis functions
+natural_spline_fit <- lm(y ~ ns_basis)
+
+# Plot the data and the fitted natural cubic spline
+plot(x, y, main = "Natural Cubic Spline with Knots", pch = 16)
+lines(x, predict(natural_spline_fit, newdata = data.frame(x = x)), col = "red", lwd = 2)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "blue", lty = 2)
+```
+
+### Summary
+
+- **Basis Functions**: These are the building blocks of splines, allowing for flexible modeling of data. For natural cubic splines, they ensure smoothness and natural behavior at the boundaries.
+- **Natural Cubic Spline**: Uses specific basis functions to maintain continuity and smoothness within the data range and to flatten out at the boundaries.
+
+### References
+
+For more detailed information on basis functions and natural cubic splines, refer to the following sources:
+
+1. **Multidimensional Splines**: Detailed notes on basis functions and multidimensional splines can be found in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: Comprehensive coverage of splines and their basis functions is available in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Basis functions for natural splines are discussed in the context of GAMs in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Applications of basis functions in functional data analysis are detailed in "ch6-FDA.pdf"【11†source】.
+
+
+
+### Different Types of Basis Functions
+
+Basis functions are versatile tools used in regression modeling to capture complex patterns in data. Various types of basis functions can be employed depending on the specific modeling requirements and the nature of the data. Here are some common types of basis functions:
+
+#### 1. **Polynomial Basis Functions**
+   - These are the simplest form of basis functions.
+   - They are powers of the predictor variable \( x \):
+     \[
+     1, x, x^2, x^3, \ldots, x^d
+     \]
+   - Polynomial basis functions can model global trends in data but may suffer from issues like overfitting for high-degree polynomials.
+
+#### 2. **Piecewise Polynomial (Spline) Basis Functions**
+   - These divide the predictor space into intervals and fit polynomial functions within each interval, ensuring smoothness at the boundaries (knots).
+
+   **Linear Splines**:
+   - Piecewise linear functions that are continuous at the knots.
+   - Example basis functions for linear splines with knots \( \xi_1, \xi_2, \ldots, \xi_K \) are:
+     \[
+     \phi_0(x) = 1, \quad \phi_1(x) = x, \quad \phi_{k+2}(x) = (x - \xi_k)_+ \quad \text{for } k = 1, \ldots, K
+     \]
+
+   **Quadratic Splines**:
+   - Piecewise quadratic functions that are continuous and smooth at the knots.
+   - Example basis functions for quadratic splines are:
+     \[
+     \phi_0(x) = 1, \quad \phi_1(x) = x, \quad \phi_2(x) = x^2, \quad \phi_{k+3}(x) = (x - \xi_k)^2_+ \quad \text{for } k = 1, \ldots, K
+     \]
+
+   **Cubic Splines**:
+   - Piecewise cubic functions that ensure continuity of the first and second derivatives at the knots.
+   - Example basis functions for cubic splines are:
+     \[
+     \phi_0(x) = 1, \quad \phi_1(x) = x, \quad \phi_2(x) = x^2, \quad \phi_3(x) = x^3, \quad \phi_{k+4}(x) = (x - \xi_k)^3_+ \quad \text{for } k = 1, \ldots, K
+     \]
+
+#### 3. **B-Splines (Basis Splines)**
+   - A specific type of spline basis function that provides a numerically stable way to represent splines.
+   - B-splines of degree \( d \) are defined recursively and ensure local control over the shape of the spline.
+   - The `bs` function in R generates B-spline basis functions.
+
+#### 4. **Natural Splines**
+   - A variant of cubic splines that include additional constraints to ensure that the spline is linear beyond the boundary knots.
+   - They provide a natural extension of the data and prevent unrealistic extrapolation.
+
+#### 5. **Fourier Basis Functions**
+   - Used to model periodic patterns in data.
+   - The basis functions are sines and cosines of varying frequencies:
+     \[
+     \phi_1(x) = 1, \quad \phi_2(x) = \sin(2 \pi x), \quad \phi_3(x) = \cos(2 \pi x), \quad \phi_4(x) = \sin(4 \pi x), \quad \phi_5(x) = \cos(4 \pi x), \ldots
+     \]
+
+#### 6. **Wavelet Basis Functions**
+   - Used for analyzing localized variations in data.
+   - Wavelet basis functions are capable of capturing both frequency and location information.
+   - They are particularly useful in signal processing and functional data analysis.
+
+#### 7. **Radial Basis Functions (RBF)**
+   - Functions that depend on the distance from a central point.
+   - Commonly used in interpolation and surface fitting.
+   - A typical radial basis function is the Gaussian function:
+     \[
+     \phi_k(x) = \exp\left(-\frac{\|x - \mu_k\|^2}{2\sigma^2}\right)
+     \]
+     where \( \mu_k \) are the centers and \( \sigma \) is a scale parameter.
+
+#### Example in R with Different Basis Functions
+
+Here's an example illustrating how to use different types of basis functions in R:
+
+```{r}
+# Load necessary libraries
+library(splines)
+library(fields)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Define knots for splines
+knots <- c(2, 4, 6, 8)
+
+# Generate basis functions
+# Polynomial basis functions
+poly_basis <- poly(x, degree = 3)
+
+# Cubic spline basis functions
+cs_basis <- bs(x, knots = knots, degree = 3)
+
+# Natural spline basis functions
+ns_basis <- ns(x, knots = knots)
+
+# Fourier basis functions
+fourier_basis <- cbind(1, sin(2 * pi * x), cos(2 * pi * x), sin(4 * pi * x), cos(4 * pi * x))
+
+# Radial basis functions
+#centers <- seq(0, 10, length.out = 10)
+#rbf_basis <- radial.basis(x, centers = centers)
+
+# Fit models using the basis functions
+poly_fit <- lm(y ~ poly_basis)
+cubic_spline_fit <- lm(y ~ cs_basis)
+natural_spline_fit <- lm(y ~ ns_basis)
+fourier_fit <- lm(y ~ fourier_basis)
+#rbf_fit <- lm(y ~ rbf_basis)
+
+# Plot the data and the fitted cubic spline
+plot(x, y, main = "Different Basis Functions", pch = 16)
+
+# Add lines for different fits
+lines(x, predict(poly_fit, newdata = data.frame(x = x)), col = "blue", lwd = 2, lty = 1)
+lines(x, predict(cubic_spline_fit, newdata = data.frame(x = x)), col = "red", lwd = 2, lty = 2)
+lines(x, predict(natural_spline_fit, newdata = data.frame(x = x)), col = "green", lwd = 2, lty = 3)
+lines(x, predict(fourier_fit, newdata = data.frame(x = x)), col = "purple", lwd = 2, lty = 4)
+#lines(x, predict(rbf_fit, newdata = data.frame(x = x)), col = "orange", lwd = 2, lty = 5)
+
+legend("topright", legend = c("Polynomial", "Cubic Spline", "Natural Spline", "Fourier", "RBF"),
+       col = c("blue", "red", "green", "purple", "orange"), lty = 1:5, lwd = 2)
+```
+
+### Summary
+
+Different types of basis functions provide flexibility in modeling complex relationships in data. The choice of basis functions depends on the nature of the data and the specific requirements of the analysis. Some common types include polynomial basis functions, piecewise polynomial (spline) basis functions, B-splines, natural splines, Fourier basis functions, wavelet basis functions, and radial basis functions.
+
+### References
+
+For further details on the various types of basis functions, refer to the following sources:
+
+1. **Multidimensional Splines**: Notes on basis functions and multidimensional splines in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: Comprehensive guide in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Discussion on basis functions within GAMs in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Applications in "ch6-FDA.pdf"【11†source】.
+5. **Wavelets**: Insights into wavelet basis functions in "ch6-Wavelets.pdf"【9†source】.
+
+
+### Truncated Power Basis
+
+#### Definition
+
+The truncated power basis is a type of basis function used in regression splines to create piecewise polynomial functions. These basis functions are particularly useful for constructing splines because they allow for flexibility and local control over the shape of the spline.
+
+#### Formulation
+
+For a given set of knots \( \xi_1, \xi_2, \ldots, \xi_K \), the truncated power basis functions for a degree \( d \) spline are defined as follows:
+
+1. **Polynomial Terms**:
+   \[
+   1, x, x^2, \ldots, x^d
+   \]
+
+2. **Truncated Power Terms**:
+   \[
+   (x - \xi_1)^d_+, (x - \xi_2)^d_+, \ldots, (x - \xi_K)^d_+
+   \]
+   where \( (x - \xi_k)^d_+ = \max(0, (x - \xi_k)^d) \) is the truncated power function, which is zero for \( x < \xi_k \) and \( (x - \xi_k)^d \) for \( x \geq \xi_k \).
+
+Thus, for a cubic spline (\( d = 3 \)) with knots \( \xi_1, \xi_2, \ldots, \xi_K \), the basis functions would be:
+
+\[
+1, x, x^2, x^3, (x - \xi_1)^3_+, (x - \xi_2)^3_+, \ldots, (x - \xi_K)^3_+
+\]
+
+#### Characteristics
+
+- **Local Control**: Each truncated power basis function affects the spline only locally around its corresponding knot, allowing for detailed local adjustments.
+- **Continuity and Smoothness**: When combined properly, the truncated power basis functions ensure that the resulting spline is smooth and continuous at the knots.
+
+### Example in R
+
+Let's illustrate how to use truncated power basis functions to fit a cubic spline in R:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Define knots
+knots <- c(2, 4, 6, 8)
+
+# Generate truncated power basis functions for a cubic spline
+truncated_power_basis <- function(x, knots, degree = 3) {
+  basis <- outer(x, 0:degree, `^`)
+  for (k in knots) {
+    basis <- cbind(basis, pmax(0, (x - k)^degree))
+  }
+  colnames(basis) <- c(paste0("x^", 0:degree), paste0("(x - ", knots, ")^", degree, "_+"))
+  return(basis)
+}
+
+# Create the design matrix using the truncated power basis functions
+X <- truncated_power_basis(x, knots, degree = 3)
+
+# Fit a linear model using the truncated power basis functions
+spline_fit <- lm(y ~ X - 1)  # -1 to remove the intercept as it's included in X
+
+# Plot the data and the fitted spline
+plot(x, y, main = "Cubic Spline with Truncated Power Basis Functions", pch = 16)
+lines(x, predict(spline_fit), col = "red", lwd = 2)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "blue", lty = 2)
+```
+
+### Explanation of the Code
+
+- **truncated_power_basis Function**: This function generates the design matrix for the truncated power basis functions. It includes polynomial terms up to the specified degree and truncated power terms for each knot.
+- **lm(y ~ X - 1)**: The linear model is fitted using the truncated power basis functions. The `-1` removes the default intercept term because the intercept is already included in the design matrix \( X \).
+
+### Summary
+
+- **Truncated Power Basis Functions**: These are used to construct splines by combining polynomial terms with truncated power terms. They offer local control and ensure smoothness and continuity of the spline at the knots.
+- **Flexibility**: The truncated power basis allows for flexible modeling of complex data patterns by adjusting the spline locally around the knots.
+
+### References
+
+For a more detailed understanding of truncated power basis functions and their applications in regression splines, refer to the following sources:
+
+1. **Multidimensional Splines**: Detailed notes on basis functions and their formulations in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: Comprehensive coverage in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Discussion on the use of basis functions within the GAM framework in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Applications of basis functions in FDA can be found in "ch6-FDA.pdf"【11†source】.
+
+
+
+### From Basis Functions to Fitted Curve
+
+To go from basis functions to a fitted curve, we follow a structured process that involves creating a design matrix from the basis functions, fitting a model to estimate the coefficients, and then using these coefficients to construct the fitted curve. Here's a detailed explanation:
+
+#### 1. Generate Basis Functions
+
+First, we generate the basis functions for the given data. This could involve using polynomial basis functions, truncated power basis functions, B-splines, or any other type of basis functions appropriate for the data and the model.
+
+#### 2. Create the Design Matrix
+
+The design matrix \( \mathbf{X} \) is constructed where each column represents a basis function evaluated at all the data points. For \( n \) data points and \( p \) basis functions, the design matrix will be \( n \times p \).
+
+#### 3. Fit the Model
+
+We fit a linear model using the design matrix to estimate the coefficients \( \beta \). This involves solving the linear regression problem:
+
+\[ \mathbf{y} = \mathbf{X} \beta + \epsilon \]
+
+where:
+- \( \mathbf{y} \) is the vector of observed data.
+- \( \mathbf{X} \) is the design matrix.
+- \( \beta \) is the vector of coefficients to be estimated.
+- \( \epsilon \) is the vector of residual errors.
+
+The coefficients \( \beta \) are estimated using least squares:
+
+\[ \hat{\beta} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y} \]
+
+#### 4. Construct the Fitted Curve
+
+The fitted curve is constructed by multiplying the design matrix by the estimated coefficients:
+
+\[ \hat{\mathbf{y}} = \mathbf{X} \hat{\beta} \]
+
+This provides the predicted values of the response variable for each value of the predictor variable.
+
+### Example in R
+
+Let's illustrate this process with an example using B-splines:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Define knots for B-splines
+knots <- c(2, 4, 6, 8)
+
+# Generate B-spline basis functions
+X_bs <- bs(x, knots = knots, degree = 3)
+
+# Fit a linear model using the B-spline basis functions
+bs_fit <- lm(y ~ X_bs - 1)  # -1 to remove the intercept as it's included in X
+
+# Extract the coefficients
+coefficients <- coef(bs_fit)
+
+# Construct the fitted values
+y_fitted <- X_bs %*% coefficients
+
+# Plot the data and the fitted B-spline curve
+plot(x, y, main = "B-Spline Fitted Curve", pch = 16)
+lines(x, y_fitted, col = "blue", lwd = 2)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "green", lty = 2)
+
+legend("topright", legend = c("Fitted B-Spline Curve"), col = c("blue"), lty = 1, lwd = 2)
+```
+
+### Explanation of the Code
+
+1. **Generating Basis Functions**:
+   - The `bs` function from the `splines` package generates the B-spline basis functions for the given data and knots.
+
+2. **Creating the Design Matrix**:
+   - `X_bs <- bs(x, knots = knots, degree = 3)` creates the design matrix where each column corresponds to a B-spline basis function evaluated at the data points.
+
+3. **Fitting the Model**:
+   - `bs_fit <- lm(y ~ X_bs - 1)` fits a linear model using the design matrix to estimate the coefficients. The `-1` removes the intercept because it is included in the design matrix.
+
+4. **Constructing the Fitted Values**:
+   - `y_fitted <- X_bs %*% coefficients` constructs the fitted values by multiplying the design matrix by the estimated coefficients.
+
+5. **Plotting the Fitted Curve**:
+   - The original data and the fitted B-spline curve are plotted, with vertical lines indicating the knot positions.
+
+### Summary
+
+- **Generate Basis Functions**: Create the basis functions for the data.
+- **Create the Design Matrix**: Construct the design matrix where each column is a basis function evaluated at all data points.
+- **Fit the Model**: Estimate the coefficients using linear regression.
+- **Construct the Fitted Curve**: Use the estimated coefficients to construct the fitted values.
+
+This process allows us to go from a set of basis functions to a smooth, fitted curve that models the underlying data pattern.
+
+### References
+
+For further reading on basis functions and the process of fitting models using them, refer to the following sources:
+
+1. **Multidimensional Splines**: Detailed notes on basis functions and their applications in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: Comprehensive coverage of splines and their properties in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Discussion on using basis functions within the GAM framework in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Applications of basis functions in FDA can be found in "ch6-FDA.pdf"【11†source】.
+
+
+### Including Polynomial Basis Functions
+
+Let's extend the example to include polynomial basis functions along with B-splines. We'll fit separate models using polynomial basis functions and B-spline basis functions, then compare their fitted curves.
+
+### Polynomial Basis Functions
+
+Polynomial basis functions are simply powers of the predictor variable \( x \):
+
+\[ 1, x, x^2, x^3, \ldots, x^d \]
+
+For a cubic polynomial, these basis functions are:
+
+\[ 1, x, x^2, x^3 \]
+
+### Example in R
+
+Here's how to fit models using both polynomial basis functions and B-spline basis functions, and compare their fitted curves:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Define knots for B-splines
+knots <- c(2, 4, 6, 8)
+
+# Generate B-spline basis functions
+X_bs <- bs(x, knots = knots, degree = 3)
+
+# Fit a linear model using the B-spline basis functions
+bs_fit <- lm(y ~ X_bs - 1)  # -1 to remove the intercept as it's included in X
+
+# Extract the coefficients for B-spline
+coefficients_bs <- coef(bs_fit)
+
+# Construct the fitted values for B-spline
+y_fitted_bs <- X_bs %*% coefficients_bs
+
+# Generate polynomial basis functions
+X_poly <- cbind(1, x, x^2, x^3)
+
+# Fit a linear model using the polynomial basis functions
+poly_fit <- lm(y ~ X_poly - 1)  # -1 to remove the intercept as it's included in X
+
+# Extract the coefficients for polynomial
+coefficients_poly <- coef(poly_fit)
+
+# Construct the fitted values for polynomial
+y_fitted_poly <- X_poly %*% coefficients_poly
+
+# Plot the data and the fitted curves
+plot(x, y, main = "Comparison of Polynomial and B-Spline Basis Functions", pch = 16)
+
+# Add lines for the fitted curves
+lines(x, y_fitted_bs, col = "blue", lwd = 2, lty = 1)
+lines(x, y_fitted_poly, col = "red", lwd = 2, lty = 2)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "green", lty = 2)
+
+# Add a legend
+legend("topright", legend = c("B-Spline Basis", "Polynomial Basis"),
+       col = c("blue", "red"), lty = c(1, 2), lwd = 2)
+```
+
+### Explanation of the Code
+
+1. **Generating Basis Functions**:
+   - **B-Spline Basis Functions**: `X_bs <- bs(x, knots = knots, degree = 3)` creates the design matrix for B-spline basis functions.
+   - **Polynomial Basis Functions**: `X_poly <- cbind(1, x, x^2, x^3)` creates the design matrix for cubic polynomial basis functions.
+
+2. **Fitting the Models**:
+   - **B-Spline Model**: `bs_fit <- lm(y ~ X_bs - 1)` fits a linear model using the B-spline basis functions.
+   - **Polynomial Model**: `poly_fit <- lm(y ~ X_poly - 1)` fits a linear model using the polynomial basis functions.
+
+3. **Extracting Coefficients**:
+   - Coefficients for both models are extracted using `coef`.
+
+4. **Constructing Fitted Values**:
+   - **B-Spline Fitted Values**: `y_fitted_bs <- X_bs %*% coefficients_bs` constructs the fitted values for the B-spline model.
+   - **Polynomial Fitted Values**: `y_fitted_poly <- X_poly %*% coefficients_poly` constructs the fitted values for the polynomial model.
+
+5. **Plotting**:
+   - The data and fitted curves for both models are plotted, with different line styles and colors to distinguish between the B-spline and polynomial fits.
+   - Vertical lines at the knot positions are added to indicate the locations of the knots.
+
+### Summary
+
+By including polynomial basis functions in the comparison, we can see the differences in flexibility and local control between polynomial regression and B-splines. Polynomial regression uses global basis functions that can model broad trends but might not capture local variations as effectively as B-splines, which provide better local control and flexibility.
+
+### References
+
+For further reading on polynomial basis functions and their comparison with B-splines, refer to the following sources:
+
+1. **Multidimensional Splines**: Detailed notes on basis functions, including polynomial and B-splines, in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: Comprehensive coverage of splines and their properties in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Discussion on using basis functions within the GAM framework in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Applications of basis functions in FDA can be found in "ch6-FDA.pdf"【11†source】.
+
+
+### Including Piecewise Polynomial Basis Functions
+
+In addition to polynomial and B-spline basis functions, we can also include piecewise polynomial basis functions in our comparison. Piecewise polynomials, or regression splines, divide the predictor space into intervals and fit polynomials within each interval, ensuring smoothness at the boundaries.
+
+### Piecewise Polynomial Basis Functions
+
+Piecewise polynomial basis functions can be generated for a specified degree and a set of knots. For example, for a cubic piecewise polynomial, the basis functions include polynomials within each segment and ensure continuity at the knots.
+
+### Example in R
+
+Let's extend the example to include piecewise polynomial basis functions along with polynomial and B-spline basis functions:
+
+```{r}
+# Load necessary library
+library(splines)
+
+# Generate example data
+set.seed(123)
+x <- seq(0, 10, length.out = 100)
+y <- sin(x) + rnorm(100, sd = 0.2)
+
+# Define knots for piecewise polynomials and B-splines
+knots <- c(2, 4, 6, 8)
+
+# Generate B-spline basis functions
+X_bs <- bs(x, knots = knots, degree = 3)
+
+# Fit a linear model using the B-spline basis functions
+bs_fit <- lm(y ~ X_bs - 1)  # -1 to remove the intercept as it's included in X
+
+# Extract the coefficients for B-spline
+coefficients_bs <- coef(bs_fit)
+
+# Construct the fitted values for B-spline
+y_fitted_bs <- X_bs %*% coefficients_bs
+
+# Generate polynomial basis functions
+X_poly <- cbind(1, x, x^2, x^3)
+
+# Fit a linear model using the polynomial basis functions
+poly_fit <- lm(y ~ X_poly - 1)  # -1 to remove the intercept as it's included in X
+
+# Extract the coefficients for polynomial
+coefficients_poly <- coef(poly_fit)
+
+# Construct the fitted values for polynomial
+y_fitted_poly <- X_poly %*% coefficients_poly
+
+# Generate piecewise polynomial basis functions
+piecewise_poly_basis <- function(x, knots, degree = 3) {
+  basis <- outer(x, 0:degree, `^`)
+  for (k in knots) {
+    basis <- cbind(basis, (x - k)^degree * (x >= k))
+  }
+  colnames(basis) <- c(paste0("x^", 0:degree), paste0("(x - ", knots, ")^", degree, "_+"))
+  return(basis)
+}
+
+# Create the design matrix using the piecewise polynomial basis functions
+X_pw <- piecewise_poly_basis(x, knots, degree = 3)
+
+# Fit a linear model using the piecewise polynomial basis functions
+pw_fit <- lm(y ~ X_pw - 1)  # -1 to remove the intercept as it's included in X
+
+# Extract the coefficients for piecewise polynomial
+coefficients_pw <- coef(pw_fit)
+
+# Construct the fitted values for piecewise polynomial
+y_fitted_pw <- X_pw %*% coefficients_pw
+
+# Plot the data and the fitted curves
+plot(x, y, main = "Comparison of Basis Functions", pch = 16)
+
+# Add lines for the fitted curves
+lines(x, y_fitted_bs, col = "blue", lwd = 2, lty = 1)
+lines(x, y_fitted_poly, col = "red", lwd = 2, lty = 2)
+lines(x, y_fitted_pw, col = "green", lwd = 2, lty = 3)
+
+# Add vertical lines at the knot positions
+abline(v = knots, col = "gray", lty = 2)
+
+# Add a legend
+legend("topright", legend = c("B-Spline Basis", "Polynomial Basis", "Piecewise Polynomial Basis"),
+       col = c("blue", "red", "green"), lty = c(1, 2, 3), lwd = 2)
+```
+
+### Explanation of the Code
+
+1. **Generating Basis Functions**:
+   - **B-Spline Basis Functions**: `X_bs <- bs(x, knots = knots, degree = 3)` creates the design matrix for B-spline basis functions.
+   - **Polynomial Basis Functions**: `X_poly <- cbind(1, x, x^2, x^3)` creates the design matrix for cubic polynomial basis functions.
+   - **Piecewise Polynomial Basis Functions**: `piecewise_poly_basis` function generates the design matrix for cubic piecewise polynomial basis functions.
+
+2. **Fitting the Models**:
+   - **B-Spline Model**: `bs_fit <- lm(y ~ X_bs - 1)` fits a linear model using the B-spline basis functions.
+   - **Polynomial Model**: `poly_fit <- lm(y ~ X_poly - 1)` fits a linear model using the polynomial basis functions.
+   - **Piecewise Polynomial Model**: `pw_fit <- lm(y ~ X_pw - 1)` fits a linear model using the piecewise polynomial basis functions.
+
+3. **Extracting Coefficients**:
+   - Coefficients for all models are extracted using `coef`.
+
+4. **Constructing Fitted Values**:
+   - **B-Spline Fitted Values**: `y_fitted_bs <- X_bs %*% coefficients_bs` constructs the fitted values for the B-spline model.
+   - **Polynomial Fitted Values**: `y_fitted_poly <- X_poly %*% coefficients_poly` constructs the fitted values for the polynomial model.
+   - **Piecewise Polynomial Fitted Values**: `y_fitted_pw <- X_pw %*% coefficients_pw` constructs the fitted values for the piecewise polynomial model.
+
+5. **Plotting**:
+   - The data and fitted curves for all models are plotted, with different line styles and colors to distinguish between the B-spline, polynomial, and piecewise polynomial fits.
+   - Vertical lines at the knot positions are added to indicate the locations of the knots.
+
+### Summary
+
+By including piecewise polynomial basis functions in the comparison, we can observe the differences in how each type of basis function models the data:
+
+- **Polynomial Basis Functions**: Model broad trends but may not capture local variations well.
+- **B-Spline Basis Functions**: Provide good local control and flexibility, ensuring smoothness at the knots.
+- **Piecewise Polynomial Basis Functions**: Also provide local control but may not be as smooth as B-splines, especially at higher degrees.
+
+### References
+
+For further reading on polynomial, B-spline, and piecewise polynomial basis functions, refer to the following sources:
+
+1. **Multidimensional Splines**: Detailed notes on basis functions, including polynomial and B-splines, in "AR-Notes-2-Multidimensional-Splines.pdf"【10†source】.
+2. **Splines Theory and Applications**: Comprehensive coverage of splines and their properties in "Splines1-2023.pdf"【13†source】.
+3. **Generalized Additive Models**: Discussion on using basis functions within the GAM framework in "ch3-gams.pdf"【12†source】.
+4. **Functional Data Analysis**: Applications of basis functions in FDA can be found in "ch6-FDA.pdf"【11†source】.
