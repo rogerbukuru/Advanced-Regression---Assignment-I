@@ -21,6 +21,7 @@ set.seed(1)
 # Define x
 x = seq(0,1, length.out=100)
 
+#x = rnorm(100,0,1)
 # We choose equally spaced notes over the range [0,1]
 knots = seq(0,1,length.out=6)
 
@@ -48,6 +49,14 @@ basis_design_matrix = basis_matrix %>% as_tibble()
 colnames(basis_design_matrix) = c("b1", "b2", "b3", "b4", paste0("b", 5:(4 + length(knots))))
 basis_design_matrix = basis_design_matrix %>%
                        mutate(x = x)
+
+basis_melted <- reshape2::melt(basis_design_matrix, id.vars = "x")
+
+ggplot(basis_melted, aes(x = x, y = value, color = variable)) + 
+  geom_line(size = 1) + 
+  labs(title = "Wood Cubic Spline Basis",
+       x = "x", y = "Basis Function Value", color = "Basis") +
+  theme_minimal()
 ```
 
 
