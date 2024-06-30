@@ -16,7 +16,6 @@ library(ggplot2)
 library(tidyverse)
 
 rm(list=ls())
-set.seed(1)
 
 # Define x
 x = seq(0,1, length.out=100)
@@ -56,20 +55,48 @@ ggplot(basis_melted, aes(x = x, y = value, color = variable)) +
   geom_line(size = 1) + 
   labs(title = "Wood Cubic Spline Basis",
        x = "x", y = "Basis Function Value", color = "Basis") +
+  #xlim(0, 1) + 
   theme_minimal()
+
 ```
 
 
+
 ```{r}
-
-
-
+# Simulate the data
+set.seed(1)
+n <- 100
+x = rnorm(n,0,1)
 #mu = 5 + sin(3 * pi * (x-0.6))
 #y <-  rnorm(100, mean = mu, sd = 0.5^2)
 
-y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(100, sd = 0.5^2)
+y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(n, sd = 0.5^2)
 
-plot(y~x)
+
+# Define the range for x for fitting
+x_fit <- seq(-3, 3, length.out = 100)
+
+# Define the knot locations for fitting
+knots_fit <- seq(-3, 3, length.out = 30)
+
+# Construct the basis matrix for fitting
+basis_matrix_fit <- cbind(
+  b1(x),
+  b2(x),
+  sapply(knots_fit[-c(1, length(knots_fit))], function(k) R_x_z(x, k))
+)
+
+# Fit the penalized regression spline
+library(mgcv)
+fit <- gam(y ~ s(x, bs = "ps", k = 30))
+
+# Predict using the fitted model
+pred <- predict(fit, newdata = data.frame(Xi = x_fit))
+
+# Plot the fitted spline and the original data
+plot(x, y, main = "Penalized Regression Spline Fit", xlab = "x", ylab = "y", pch = 16)
+lines(x_fit, pred, col = "blue", lwd = 2)
+
 ```
 
 
