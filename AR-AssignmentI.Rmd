@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Question 1
 
+## A
+
 ```{r}
 library(ggplot2)
 library(tidyverse)
@@ -22,7 +24,7 @@ x = seq(0,1, length.out=100)
 
 #x = rnorm(100,0,1)
 # We choose equally spaced notes over the range [0,1]
-knots = seq(0,1,length.out=6)
+knots = seq(0,1,length.out=8) # we set this to 8 as the first and last knots will be removed, so this ensures we are left with 6
 
 # Basis functions per Woods formulation
 
@@ -60,9 +62,10 @@ ggplot(basis_melted, aes(x = x, y = value, color = variable)) +
 
 ```
 
-
+## B
 
 ```{r}
+library(mgcv)
 # Simulate the data
 set.seed(1)
 n <- 100
@@ -74,31 +77,139 @@ y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(n, sd = 0.5^2)
 
 
 # Define the range for x for fitting
-x_fit <- seq(-3, 3, length.out = 100)
+x_fit <- seq(min(x), max(x), length.out = 100)
 
 # Define the knot locations for fitting
-knots_fit <- seq(-3, 3, length.out = 30)
+knots_fit <- seq(min(x), max(x), length.out = 32)
 
 # Construct the basis matrix for fitting
 basis_matrix_fit <- cbind(
   b1(x),
   b2(x),
-  sapply(knots_fit[-c(1, length(knots_fit))], function(k) R_x_z(x, k))
+  sapply(knots_fit, function(k) R_x_z(x, k))
 )
 
 # Fit the penalized regression spline
-library(mgcv)
-fit <- gam(y ~ s(x, bs = "ps", k = 30))
+penalized_reg_spline <- gam(y ~ s(x, bs = "ps", k = 30))
 
+penalized_reg_spline$coefficients
+penalized_reg_spline$gcv.ubre
 # Predict using the fitted model
-pred <- predict(fit, newdata = data.frame(Xi = x_fit))
+y_hat <- predict(penalized_reg_spline, newdata = data.frame(Xi = x_fit))
 
 # Plot the fitted spline and the original data
-plot(x, y, main = "Penalized Regression Spline Fit", xlab = "x", ylab = "y", pch = 16)
-lines(x_fit, pred, col = "blue", lwd = 2)
+#plot(x, y, main = "Penalized Regression Spline Fit", xlab = "x", ylab = "y", pch = 16)
+#lines(x_fit, y_hat, col = "blue", lwd = 2)
+
+
+final_data <- data.frame(x = x, y = y, x_test=x_fit, y_hat= y_hat)
+#fit_data <- data.frame(Xi = x_fit, Yi_pred = pred)
+
+# Plot the data and the fitted penalized regression spline using ggplot2
+ggplot() + 
+  geom_point(data = final_data, aes(x = x, y = y), color = 'black', alpha = 0.6) +
+  geom_line(data = final_data, aes(x = x_test, y = y_hat), color = 'blue', size = 1.2) +
+  labs(title = "Penalized Regression Spline Fit",
+       x = "X",
+       y = "Y") +
+  theme_minimal()
+```
+
+## C
+
+```{r}
+
+# Predict with confidence intervals
+y_hat_with_ci <- predict(penalized_reg_spline, newdata = data.frame(x = x_fit), se.fit = TRUE)
+
+# Calculate upper and lower confidence intervals (95% confidence intervals)
+upper <- y_hat_with_ci$fit + 1.96 * y_hat_with_ci$se.fit
+lower <- y_hat_with_ci$fit - 1.96 * y_hat_with_ci$se.fit
+
+# Prepare data for confidence intervals
+final_ci_data <- data.frame(x = x_fit, lower = lower, upper = upper)
+
+# Plot the data, fitted spline, and confidence intervals using ggplot2
+ggplot() + 
+  geom_point(data = final_data, aes(x = x, y = y), color = 'black', alpha = 0.6) +
+  geom_line(data = final_data, aes(x = x_test, y = y_hat), color = 'blue', size = 1.2) +
+  geom_ribbon(data = final_ci_data, aes(x = x, ymin = lower, ymax = upper), alpha = 0.2, fill = 'blue') +
+  labs(title = "Penalized Regression Spline Fit with Confidence Bands",
+       x = "X",
+       y = "Y") +
+  theme_minimal()
+```
+
+## D
+
+```{r}
+# Extract the GCV scores for a range of smoothing parameters
+lambda_values <- seq(0.001, 1, length.out = 100)
+gcv_values <- sapply(lambda_values, function(lambda) {
+  fit_lambda <- gam(y ~ s(x, bs = "ps", k = 30, sp = lambda))
+  return(fit_lambda$gcv.ubre)
+})
+
+# Plot GCV as a function of the smoothing parameter
+plot(lambda_values, gcv_values, type = "l", col = "blue", lwd = 2, 
+     main = "GCV as a Function of the Smoothing Parameter", 
+     xlab = "Smoothing Parameter (lambda)", ylab = "GCV")
 
 ```
 
+
+
+```{r}
+
+# Construct penalty matrix
+knot_positions <- knots_fit[-c(1, length(knots_fit))]
+n_knots = length(knots_fit)
+S = matrix(0, n_knots, n_knots)
+for(i in 1:n_knots){
+  for (j in 1: n_knots){
+    S[i,j] = R_x_z(knots_fit[i], knots_fit[j])
+  }
+}
+
+compute_gcv = function(lambda){
+  lambda 0.1
+  basis_matrix <- cbind(
+  b1(x),
+  b2(x),
+  sapply(knots_fit[-c(1, length(knots_fit))], function(k) R_x_z(x, k))
+)
+  P = lambda * S
+  P = P[3:ncol(basis_matrix), 3:ncol(basis_matrix)]
+  X  = basis_matrix[, 3:ncol(basis_matrix)]
+  XtX_plus_p = t(X)%*%X + P 
+  XtY = t(X)%*%y
+  beta_hat = solve(XtX_plus_p)%*%XtY
+  fitted_values = X %*% beta_hat
+  
+  # Compute residuals
+  residuals = y - fitted_values
+  H = X %*% solve(XtX_plus_p)%*%t(X)
+  edf = sum(diag(H))
+  
+  # Compute the GCV score
+  n = length(y)
+  gcv = sum(residuals^2)/(n*(1-edf/n)^2)
+  return (gcv)
+}
+
+lambda_values <- seq(0.001, 1, length.out = 100)
+gcv_scores <- sapply(lambda_values, compute_gcv)
+
+gcv_data <- data.frame(lambda = lambda_values, gcv = gcv_scores)
+
+ggplot(gcv_data, aes(x = lambda, y = gcv)) +
+  geom_line(color = 'blue', size = 1.2) +
+  labs(title = "GCV as a Function of the Smoothing Parameter",
+       x = "Smoothing Parameter (lambda)",
+       y = "GCV Score") +
+  theme_minimal()
+
+```
 
 
 ```{r}
