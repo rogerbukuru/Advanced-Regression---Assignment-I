@@ -63,82 +63,6 @@ ggplot(basis_melted, aes(x = x, y = value, color = variable)) +
 
 ```
 
-## B
-
-```{r}
-library(mgcv)
-set.seed(1)
-
-n <- 100
-x = rnorm(n,0,1)
-
-y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(n, sd = 0.5^2)
-
-
-# Define the range for x for fitting
-x_fit <- seq(min(x), max(x), length.out = 100)
-
-# Define the knot locations for fitting
-knots_fit <- seq(min(x), max(x), length.out = 32)
-
-# Construct the basis matrix for fitting
-basis_matrix_fit <- cbind(
-  b1(x),
-  b2(x),
-  sapply(knots_fit, function(k) R_x_z(x, k))
-)
-
-# Fit the penalized regression spline
-penalized_reg_spline <- gam(y ~ s(x, bs = "ps", k = 30))
-
-penalized_reg_spline$coefficients
-penalized_reg_spline$gcv.ubre
-# Predict using the fitted model
-y_hat <- predict(penalized_reg_spline, newdata = data.frame(Xi = x_fit))
-
-# Plot the fitted spline and the original data
-#plot(x, y, main = "Penalized Regression Spline Fit", xlab = "x", ylab = "y", pch = 16)
-#lines(x_fit, y_hat, col = "blue", lwd = 2)
-
-
-final_data <- data.frame(x = x, y = y, x_test=x_fit, y_hat= y_hat)
-#fit_data <- data.frame(Xi = x_fit, Yi_pred = pred)
-
-# Plot the data and the fitted penalized regression spline using ggplot2
-ggplot() + 
-  geom_point(data = final_data, aes(x = x, y = y), color = 'black', alpha = 0.6) +
-  geom_line(data = final_data, aes(x = x_test, y = y_hat), color = 'blue', size = 1.2) +
-  labs(title = "Penalized Regression Spline Fit",
-       x = "X",
-       y = "Y") +
-  theme_minimal()
-```
-
-## C
-
-```{r}
-
-# Predict with confidence intervals
-y_hat_with_ci <- predict(penalized_reg_spline, newdata = data.frame(x = x_fit), se.fit = TRUE)
-
-# Calculate upper and lower confidence intervals (95% confidence intervals)
-upper <- y_hat_with_ci$fit + 1.96 * y_hat_with_ci$se.fit
-lower <- y_hat_with_ci$fit - 1.96 * y_hat_with_ci$se.fit
-
-# Prepare data for confidence intervals
-final_ci_data <- data.frame(x = x_fit, lower = lower, upper = upper)
-
-# Plot the data, fitted spline, and confidence intervals using ggplot2
-ggplot() + 
-  geom_point(data = final_data, aes(x = x, y = y), color = 'black', alpha = 0.6) +
-  geom_line(data = final_data, aes(x = x_test, y = y_hat), color = 'blue', size = 1.2) +
-  geom_ribbon(data = final_ci_data, aes(x = x, ymin = lower, ymax = upper), alpha = 0.2, fill = 'blue') +
-  labs(title = "Penalized Regression Spline Fit with Confidence Bands",
-       x = "X",
-       y = "Y") +
-  theme_minimal()
-```
-
 
 # B 
 
@@ -150,8 +74,7 @@ x = rnorm(n,0,1)
 y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(n, sd = 0.5^2)
 
 
-# Define the knot locations for fitting
-knots <- seq(min(x), max(x), length.out = 30) # Define length of 32 because the first and last knots will be removed, to ensure we have exactly 30 knots
+knots <- seq(min(x), max(x), length.out = 32) # We define length of 32 because the first and last knots will be removed, to ensure we have exactly 30 knots
 
 # Construct penalty matrix
 knot_positions <- knots[-c(1, length(knots))]
@@ -175,12 +98,14 @@ penalized_regression_spline = function(lambda){
   XtY = t(X)%*%y
   beta_hat = solve(XtX_plus_p)%*%XtY
   fitted_values = X %*% beta_hat
-  return (fitted_values)
+  H = X %*% solve(XtX_plus_p) %*% t(X)
+  se_errors = sqrt(diag(H))
+  return (list(fitted_values = fitted_values , se_errors = se_errors))
 }
 
-y_hat = penalized_regression_spline(0.00000001)
+fit_result = penalized_regression_spline(0.00000001) # choose a random lambda value
 
-plot_data <- data.frame(x = x, y = y, y_hat = y_hat)
+plot_data <- data.frame(x = x, y = y, y_hat = fit_result$fitted_values, se_errors=fit_result$se_errors)
 
 ggplot(plot_data, aes(x = x, y = y)) + 
   geom_point(color = 'black', alpha = 0.6) +
@@ -190,6 +115,30 @@ ggplot(plot_data, aes(x = x, y = y)) +
        y = "Y") +
   theme_minimal()
 ```
+
+
+## C
+
+```{r}
+
+# (95% confidence intervals)
+upper <- fit_result$fitted_values + 1.96 * fit_result$se_errors
+lower <- fit_result$fitted_values - 1.96 * fit_result$se_errors
+
+
+plot_data <- data.frame(x = x, y = y, y_hat = fit_result$fitted_values, lower = lower, upper = upper)
+
+ggplot(plot_data, aes(x = x, y = y)) + 
+  geom_point(color = 'black', alpha = 0.6) +
+  geom_line(aes(y = y_hat), color = 'blue', size = 1.2) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.1, fill = 'blue') +
+  labs(title = "Penalized Regression Spline Fit with Confidence Bands",
+       x = "X",
+       y = "Y") +
+  theme_minimal()
+```
+
+
 
 
 
