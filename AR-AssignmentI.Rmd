@@ -150,10 +150,9 @@ compute_gcv = function(lambda){
   basis_matrix <- cbind(
   b1(x),
   b2(x),
-  sapply(knots_fit[-c(1, length(knots_fit))], function(k) R_x_z(x, k))
+  sapply(knot_positions, function(k) R_x_z(x, k))
 )
   P = lambda * S
-  P = P[3:ncol(basis_matrix), 3:ncol(basis_matrix)]
   X  = basis_matrix[, 3:ncol(basis_matrix)]
   XtX_plus_p = t(X)%*%X + P 
   XtY = t(X)%*%y
@@ -171,7 +170,7 @@ compute_gcv = function(lambda){
   return (gcv)
 }
 
-lambda_values <- seq(0.001, 1, length.out = 100)
+lambda_values <- seq(0.00000001, 1, length.out = 5000)
 gcv_scores <- sapply(lambda_values, compute_gcv)
 
 gcv_data <- data.frame(lambda = lambda_values, gcv = gcv_scores)
