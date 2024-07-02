@@ -24,6 +24,7 @@ x = seq(0,1, length.out=100)
 
 #x = rnorm(100,0,1)
 # We choose equally spaced notes over the range [0,1]
+
 knots = seq(0,1,length.out=8) # we set this to 8 as the first and last knots will be removed, so this ensures we are left with 6
 
 # Basis functions per Woods formulation
@@ -66,12 +67,10 @@ ggplot(basis_melted, aes(x = x, y = value, color = variable)) +
 
 ```{r}
 library(mgcv)
-# Simulate the data
 set.seed(1)
+
 n <- 100
 x = rnorm(n,0,1)
-#mu = 5 + sin(3 * pi * (x-0.6))
-#y <-  rnorm(100, mean = mu, sd = 0.5^2)
 
 y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(n, sd = 0.5^2)
 
@@ -140,39 +139,65 @@ ggplot() +
   theme_minimal()
 ```
 
-## D
+
+# B 
 
 ```{r}
-# Extract the GCV scores for a range of smoothing parameters
-lambda_values <- seq(0.001, 1, length.out = 100)
-gcv_values <- sapply(lambda_values, function(lambda) {
-  fit_lambda <- gam(y ~ s(x, bs = "ps", k = 30, sp = lambda))
-  return(fit_lambda$gcv.ubre)
-})
+set.seed(123)
+n <- 100
+x = rnorm(n,0,1)
 
-# Plot GCV as a function of the smoothing parameter
-plot(lambda_values, gcv_values, type = "l", col = "blue", lwd = 2, 
-     main = "GCV as a Function of the Smoothing Parameter", 
-     xlab = "Smoothing Parameter (lambda)", ylab = "GCV")
+y <- 5 + sin(3 * pi * (x-0.6)) + rnorm(n, sd = 0.5^2)
 
+
+# Define the knot locations for fitting
+knots <- seq(min(x), max(x), length.out = 30) # Define length of 32 because the first and last knots will be removed, to ensure we have exactly 30 knots
+
+# Construct penalty matrix
+knot_positions <- knots[-c(1, length(knots))]
+n_knots = length(knot_positions)
+S = matrix(0, n_knots, n_knots)
+for(i in 1:n_knots){
+  for (j in 1: n_knots){
+    S[i,j] = R_x_z(knot_positions[i], knot_positions[j])
+  }
+}
+
+penalized_regression_spline = function(lambda){
+  basis_matrix <- cbind(
+  b1(x),
+  b2(x),
+  sapply(knot_positions, function(k) R_x_z(x, k))
+)
+  P = lambda * S
+  X  = basis_matrix[, 3:ncol(basis_matrix)]
+  XtX_plus_p = t(X)%*%X + P 
+  XtY = t(X)%*%y
+  beta_hat = solve(XtX_plus_p)%*%XtY
+  fitted_values = X %*% beta_hat
+  return (fitted_values)
+}
+
+y_hat = penalized_regression_spline(0.00000001)
+
+plot_data <- data.frame(x = x, y = y, y_hat = y_hat)
+
+ggplot(plot_data, aes(x = x, y = y)) + 
+  geom_point(color = 'black', alpha = 0.6) +
+  geom_line(aes(y = y_hat), color = 'blue', size = 1.2) +
+  labs(title = "Penalized Regression Spline Fit",
+       x = "X",
+       y = "Y") +
+  theme_minimal()
 ```
 
 
 
+# D
+
 ```{r}
 
-# Construct penalty matrix
-knot_positions <- knots_fit[-c(1, length(knots_fit))]
-n_knots = length(knots_fit)
-S = matrix(0, n_knots, n_knots)
-for(i in 1:n_knots){
-  for (j in 1: n_knots){
-    S[i,j] = R_x_z(knots_fit[i], knots_fit[j])
-  }
-}
-
 compute_gcv = function(lambda){
-  lambda 0.1
   basis_matrix <- cbind(
   b1(x),
   b2(x),
