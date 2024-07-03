@@ -86,7 +86,7 @@ for(i in 1:n_knots){
   }
 }
 
-penalized_regression_spline = function(lambda){
+penalized_regression_spline = function(lambda, S, knot_positions, y){
   basis_matrix <- cbind(
   b1(x),
   b2(x),
@@ -103,7 +103,7 @@ penalized_regression_spline = function(lambda){
   return (list(fitted_values = fitted_values , se_errors = se_errors))
 }
 
-fit_result = penalized_regression_spline(0.00000001) # choose a random lambda value
+fit_result = penalized_regression_spline(0.00000001, S, knot_positions,y) # choose a random lambda value
 
 plot_data <- data.frame(x = x, y = y, y_hat = fit_result$fitted_values, se_errors=fit_result$se_errors)
 
@@ -184,6 +184,178 @@ ggplot(gcv_data, aes(x = lambda, y = gcv)) +
 
 ```
 
+
+# Question 2
+
+```{r}
+
+library(gamair)
+library(tidyverse)
+
+rm(list=ls())
+
+# Basis functions per Woods formulation
+
+b1 = function(x) {
+  rep(1, length(x))
+}
+
+b2 = function(x){
+  x
+}
+
+R_x_z = function(x, z) {
+  ((z - 0.5)^2 - 1/12) * ((x - 0.5)^2 - 1/12) / 4 - 
+  ((abs(x - z) - 0.5)^4 - 0.5 * (abs(x - z) - 0.5)^2 + 7/240) / 24
+}
+
+data("brain")
+brain_data = brain%>%as_tibble()%>%
+                  select(X,Y, medFPQ)
+
+tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_positions, x_penalty_matrix, y_penalty_matrix, lambda, penalize=FALSE) {
+  
+  # Scale x and y
+  x_scaled = scale(x)
+  y_scaled = scale(y)
+  
+  y_data = as.matrix(response)
+  x_basis_matrix <- cbind(sapply(x_knot_positions, function(k) R_x_z(x_scaled, k)))
+  y_basis_matrix <- cbind(sapply(y_knot_positions, function(k) R_x_z(y_scaled, k)))
+  
+  tensor_basis_matrix = compute_tensor_product(x_basis_matrix, y_basis_matrix)
+  tensor_penalty_matrix = compute_tensor_product(x_penalty_matrix, y_penalty_matrix)
+  
+  P = lambda * tensor_penalty_matrix
+  X  = tensor_basis_matrix[1:nrow(y_data),]
+  #X = scale(X, scale=TRUE, center=TRUE)
+  #P = scale(P, scale=TRUE, center=TRUE)
+  XtX_plus_p = t(X)%*%X + P 
+  
+  # Add a small constant to the diagonal for numerical stability
+  epsilon = 1e-8
+  XtX_plus_p = XtX_plus_p + diag(epsilon, nrow(XtX_plus_p))
+  
+  #print(dim(t(X)))
+  #print(dim(y_data))
+  XtY = t(X)%*%y_data
+ #print(dim(XtX_plus_p))
+  beta_hat = MASS::ginv(XtX_plus_p)%*%XtY
+  fitted_values = X %*% beta_hat
+  H = X %*% MASS::ginv(XtX_plus_p) %*% t(X)
+  se_errors = sqrt(diag(H))
+  return (list(fitted_values = fitted_values , se_errors = se_errors))
+ #return(tensor_basis_matrix)
+}
+
+compute_tensor_product = function(A, B){
+  m1 = ncol(A)
+  m2 = ncol(B)
+  G = matrix(NA, nrow=nrow(A)*nrow(B), ncol = m1 * m2 )
+  ccol <- 1
+  for (j in 1:m1) {
+    for (k in 1:m2) {
+      G[, ccol] <- A[, j] * B[, k]
+      ccol <- ccol + 1
+    }
+  }
+  return (G)
+}
+
+x_knots <- seq(min(brain_data$X), max(brain$X), length.out = 10) 
+y_knots <- seq(min(brain_data$Y), max(brain$Y), length.out = 10) 
+#x_knot_positions <- x_knots[-c(1, length(x_knots))]
+#y_knot_positions <- y_knots[-c(1, length(y_knots))]
+
+
+
+# # Construct penalty matrix
+
+# Construct penalty matrix
+construct_penalty_matrix <- function(knots) {
+  n_knots <- length(knots)
+  S <- matrix(0, n_knots, n_knots)
+  for (i in 1:n_knots) {
+    for (j in 1:n_knots) {
+      S[i, j] <- R_x_z(knots[i], knots[j])
+    }
+  }
+  S
+}
+S_x = construct_penalty_matrix(x_knots)
+S_y = construct_penalty_matrix(y_knots)
+
+# n_x_knots = length(x_knot_positions)
+# S_x = matrix(0, n_x_knots, n_x_knots)
+#   for(i in 1:n_x_knots){
+#    for (j in 1: n_x_knots){
+#      S_x[i,j] = R_x_z(x_knot_positions[i], x_knot_positions[j])
+#    }
+#   }
+# 
+# n_y_knots = length(y_knot_positions)
+# S_y = matrix(0, n_y_knots, n_y_knots)
+#   for(i in 1:n_y_knots){
+#    for (j in 1: n_y_knots){
+#      S_y[i,j] = R_x_z(y_knot_positions[i], y_knot_positions[j])
+#    }
+#  }
+
+tensor_product_spline_result = tensor_product_spline(
+  brain_data$X, 
+  brain_data$Y, 
+  brain_data$medFPQ,
+  x_knots, 
+  y_knots,
+  S_x,
+  S_y,
+  0.00001
+  )
+
+
+# Visualize the results
+brain_data <- brain_data %>% mutate(Fitted = tensor_product_spline_result$fitted_values)
+
+ggplot(brain_data, aes(x = X, y = Y)) +
+  geom_tile(aes(fill = Fitted)) +
+  geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
+  scale_fill_viridis_c() +
+  labs(title = "Tensor Product Spline Fit",
+       x = "X",
+       y = "Y",
+       fill = "Fitted medFPQ",
+       color = "Observed medFPQ") +
+  theme_minimal()
+
+```
+```{r}
+# Create a data frame with original data and fitted values
+plot_data <- data.frame(
+  X = brain_data$X,
+  Y = brain_data$Y,
+  Original = brain_data$medFPQ,
+  Fitted = tensor_product_spline_result$fitted_values
+)
+
+# Create a long format of the data for easier plotting
+plot_data_long <- tidyr::pivot_longer(plot_data, 
+                                      cols = c(Original, Fitted),
+                                      names_to = "Type",
+                                      values_to = "Value")
+
+# Create the plot
+ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
+  geom_tile() +
+  facet_wrap(~ Type) +
+  scale_fill_viridis_c() +
+  labs(title = "Original vs Fitted Values",
+       x = "X coordinate",
+       y = "Y coordinate",
+       fill = "medFPQ") +
+  theme_minimal() +
+  theme(aspect.ratio = 1)
+
+```
 
 ```{r}
 pulsar_data = read.csv2("Pulsar.csv", header = TRUE, sep=",")
