@@ -362,6 +362,3 @@ pulsar_data = read.csv2("Pulsar.csv", header = TRUE, sep=",")
 head(pulsar_data)
 ```
 
-```{r}
-
-```
