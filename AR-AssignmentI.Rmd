@@ -236,8 +236,8 @@ tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_position
   XtX_plus_p = t(X)%*%X + P 
   
   # Add a small constant to the diagonal for numerical stability
-  epsilon = 1e-8
-  XtX_plus_p = XtX_plus_p + diag(epsilon, nrow(XtX_plus_p))
+  #epsilon = 1e-8
+  #XtX_plus_p = XtX_plus_p + diag(epsilon, nrow(XtX_plus_p))
   
   #print(dim(t(X)))
   #print(dim(y_data))
