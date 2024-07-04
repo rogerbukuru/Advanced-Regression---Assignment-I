@@ -456,10 +456,25 @@ ggsave("tps_original_vs_fitted.png", p, width = 12, height = 6)
 
 ```
 
+# Question 3
 
 ```{r}
+library(mgcv)
+rm(list = ls())
 pulsar_data = read.csv2("Pulsar.csv", header = TRUE, sep=",")
 head(pulsar_data)
+
+set.seed(10032024)
+dataSize = nrow(pulsar_data)
+trainingSize = floor(0.80*dataSize)
+trainingDataIndices = sample(seq_len(dataSize), size = trainingSize)
+training_data = pulsar_data[trainingDataIndices,]
+testing_data  = pulsar_data[-trainingDataIndices,]
+
+# Fit Logistic Regession Model (GLM)
+
+log_regression_model = glm(Class ~., data = training_data, family = binomial)
+gam_model = gam(Class ~ s())
 ```
 
 
