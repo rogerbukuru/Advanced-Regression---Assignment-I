@@ -189,8 +189,10 @@ ggplot(gcv_data, aes(x = lambda, y = gcv)) +
 
 ```{r}
 
+
 library(gamair)
 library(tidyverse)
+library(dplyr)
 
 rm(list=ls())
 
@@ -210,8 +212,9 @@ R_x_z = function(x, z) {
 }
 
 data("brain")
+
 brain_data = brain%>%as_tibble()%>%
-                  select(X,Y, medFPQ)
+             select(X,Y, medFPQ)
 
 tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_positions, x_penalty_matrix, y_penalty_matrix, lambda, penalize=FALSE) {
   
@@ -357,8 +360,107 @@ ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
 
 ```
 
+
+```{r}
+library(gamair)
+library(tidyverse)
+library(dplyr)
+
+rm(list=ls())
+
+data("brain")
+
+brain_data = brain%>%as_tibble()%>%
+             select(X,Y, medFPQ)
+
+# Radial Basis function
+tps_basis = function(r){
+  ifelse(r>0, r^2 * log(r), 0)
+}
+
+create_design_matrix = function(data, knots){
+  n = nrow(data)
+  m = nrow(knots)
+  # Create matrices of coordinates
+  data_mat <- as.matrix(data[, 1:2])
+  knots_mat <- as.matrix(knots[, 1:2])
+  
+  # Compute pairwise distances
+  distances <- fields::rdist(data_mat, knots_mat)
+  
+  # Apply the thin-plate spline basis function to all distances at once
+  B <- apply(distances, c(1,2), tps_basis)
+  
+  A = cbind(1, data)
+  X = cbind(A, B)
+  return (list (X=X, A=A, B=B))
+}
+
+thin_plate_spline = function(data, lambda, num_knots){
+  n = nrow(data)
+  knot_indices = seq(1, n, length.out = num_knots) 
+  knots = data[knot_indices, 1:2]
+  #knots = seq(1, n, length.out = num_knots) 
+  
+  # Create design matrix
+  design_matrix = create_design_matrix(data[,1:2], knots)
+  X = as.matrix(design_matrix$X)
+  A = design_matrix$A
+  B = design_matrix$B
+  
+  # Create penalty matrix
+  m = ncol(B)
+  P = rbind(
+    cbind(matrix(0,3,3), matrix(0,3,m)),
+    cbind(matrix(0,m,3), B[knot_indices,])
+  )
+  y = as.matrix(data[, 3])
+  XtX_plus_p = t(X)%*%X + (lambda * P )
+  XtY = t(X)%*%y
+  beta_hat = solve(XtX_plus_p)%*%XtY
+  fitted_values = X %*% beta_hat
+  colnames(fitted_values) = "Fitted"
+  H = X %*% solve(XtX_plus_p) %*% t(X)
+  se_errors = sqrt(diag(H))
+  return (list(fitted_values = fitted_values , se_errors = se_errors))
+}
+
+tps_result = thin_plate_spline(brain_data, 0.0001, 10)
+
+head(tps_result$fitted_values)
+
+plot_data <- data.frame(
+  X = brain_data$X,
+  Y = brain_data$Y,
+  Original = brain_data$medFPQ,
+  Fitted = tps_result$fitted_values
+)
+
+# Reshape the data for plotting
+plot_data_long <- tidyr::pivot_longer(plot_data, cols = c(Original, Fitted),names_to = "Type", values_to = "medFPQ")
+
+p = ggplot(plot_data_long, aes(x = X, y = Y, fill = medFPQ)) +
+  geom_tile() +
+  facet_wrap(~ Type) +
+  scale_fill_viridis_c() +
+  labs(title = "Thin-Plate Spline: Original vs Fitted Values",
+       x = "X", 
+       y = "Y", 
+       fill = "medFPQ") +
+  theme_minimal() +
+  theme(aspect.ratio = 1)
+
+print(p)
+ggsave("tps_original_vs_fitted.png", p, width = 12, height = 6)
+
+
+```
+
+
 ```{r}
 pulsar_data = read.csv2("Pulsar.csv", header = TRUE, sep=",")
 head(pulsar_data)
 ```
+
+
 
