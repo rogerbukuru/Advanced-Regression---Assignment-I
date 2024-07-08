@@ -519,6 +519,8 @@ library(fds)
 library(wavelets)
 library(glmnet)
 library(ggplot2)
+library(wavethresh)
+
 #library(SCBmeanfd)
 rm(list = ls())
 # Load the phoneme data from fds package
@@ -526,8 +528,92 @@ data(aa)
 data(ao)
 
 
-plot(aa)
-plot(ao)
+aa_data <- aa$y
+ao_data <- ao$y
 
+X <- rbind(aa_data, ao_data)
+y <- c(rep(0, nrow(aa_data)), rep(1, nrow(ao_data)))
+
+# Function to apply wavelet transform
+apply_wavelet <- function(data, n_coef = 256) {
+  # Find the next power of 2 that's at least as large as the data length
+  next_power_of_2 <- 2^ceiling(log2(length(data)))
+  
+  # Pad the data with zeros to reach the next power of 2
+  padded_data <- c(data, rep(0, next_power_of_2 - length(data)))
+  
+  wt <- wd(padded_data, filter.number = 10, family = "DaubLeAsymm")
+  
+  # Get all available levels
+  all_levels <- 0:(nlevelsWT(wt) - 1)
+  
+  # Collect coefficients from all levels
+  all_coefs <- unlist(lapply(all_levels, function(l) accessD(wt, level = l)))
+  
+  # Return the first n_coef coefficients (or all if less than n_coef)
+  return(all_coefs[1:min(length(all_coefs), n_coef)])
+}
+
+# Apply wavelet transform to each row
+X_wavelet <- t(apply(X, 1, apply_wavelet))
+
+
+# Split data
+set.seed(123)
+total_samples <- nrow(X_wavelet)
+train_size <- floor(0.7 * total_samples)
+train_indices <- sample(1:total_samples, train_size)
+
+X_train <- X_wavelet[train_indices, ]
+X_test <- X_wavelet[-train_indices, ]
+y_train <- y[train_indices]
+y_test <- y[-train_indices]
+
+# Fit the model
+cv_fit <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 1)
+best_lambda <- cv_fit$lambda.min
+model <- glmnet(X_train, y_train, family = "binomial", alpha = 1, lambda = best_lambda)
+
+
+# Make predictions
+predictions <- predict(model, X_test, type = "response")
+predicted_classes <- ifelse(predictions > 0.5, 1, 0)
+
+# Calculate accuracy
+accuracy <- mean(predicted_classes == y_test)
+print(paste("Accuracy:", accuracy))
+
+# Create confusion matrix
+conf_matrix <- table(Predicted = predicted_classes, Actual = y_test)
+print("Confusion Matrix:")
+print(conf_matrix)
+
+# Get feature importances
+coef_importance <- abs(coef(model))[-1]  # Exclude intercept
+top_features <- order(coef_importance, decreasing = TRUE)[1:10]
+
+print("Top 10 most important wavelet coefficients:")
+print(top_features)
+
+# Plot feature importances
+plot(coef_importance, main = "Wavelet Coefficient Importances", 
+     xlab = "Coefficient Index", ylab = "Absolute Coefficient Value")
+points(top_features, coef_importance[top_features], col = "red", pch = 19)
+
+
+coefficients <- coef(model)
+
+# Extract and plot the non-zero coefficients
+non_zero_coeffs <- coefficients[coefficients != 0]
+non_zero_indices <- which(coefficients != 0)
+
+# Create a data frame for plotting
+coeff_data <- data.frame(Index = non_zero_indices, Coefficient = non_zero_coeffs)
+
+# Plot the non-zero coefficients
+ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Non-zero Coefficients from Penalized Logistic Regression",
+       x = "Wavelet Coefficient Index",
+       y = "Coefficient Value")
 ```
-
