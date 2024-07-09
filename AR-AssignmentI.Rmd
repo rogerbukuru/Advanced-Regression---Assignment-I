@@ -617,3 +617,137 @@ ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
        x = "Wavelet Coefficient Index",
        y = "Coefficient Value")
 ```
+
+```{r}
+# Load necessary libraries
+library(gamair)
+library(ggplot2)
+library(fda)
+
+rm(list = ls())
+# Load the data
+data(gas)
+
+
+# Extract the spectra and octane ratings
+# Ensure the nir_spectra data is a matrix and transpose it
+
+nir_spectra <- matrix(as.numeric(unlist(gas$NIR)), nrow = 60, byrow = TRUE)
+colnames(nir_spectra) = colnames(gas$NIR)
+nir_spectra <- t(nir_spectra)  # Transpose to have 401 rows and 60 columns
+octane <- gas$octane
+
+
+# Define the basis
+nir_basis <- create.bspline.basis(rangeval = c(900, 1700), nbasis = 20)
+
+# Convert the spectra to functional data object
+nir_fd <- smooth.basis(argvals = seq(900, 1700, by = 2), y = nir_spectra, fdParobj = nir_basis)$fd
+
+# Plot the first few spectra
+plot(nir_fd, main = "NIR Spectra", xlab = "Wavelength (nm)", ylab = "log(1/R)")
+
+# Get the coefficients of the functional data object
+nir_fd_coefs <- t(eval.fd(seq(900, 1700, by = 2), nir_fd))
+
+# Fit a linear model using the coefficients
+lm_model <- lm(octane ~ nir_fd_coefs)
+
+# Summarize the model
+summary(lm_model)
+
+# Predict octane ratings
+octane_pred <- predict(lm_model)
+
+# Create a data frame for plotting
+results <- data.frame(Actual = octane, Predicted = octane_pred)
+
+# Plot actual vs predicted values
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(color = 'blue') +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Actual vs Predicted Octane Ratings",
+       x = "Actual Octane Rating",
+       y = "Predicted Octane Rating") +
+  theme_minimal()
+
+# Interpretation
+summary(lm_model)
+
+# Print the coefficients
+coef(lm_model)
+
+# Discuss the model performance
+# The R-squared value and the p-values of the coefficients will give us an idea of the model's performance.
+# A high R-squared value indicates a good fit, while low p-values suggest that the predictors are significant.
+
+```
+
+
+```{r}
+# Load necessary libraries
+install.packages("gamair")
+library(gamair)
+library(ggplot2)
+library(splines)
+
+rm(list = ls())
+# Load the data
+data(gas)
+
+# Extract the spectra and octane ratings
+# Ensure the nir_spectra data is a matrix and transpose it
+nir_spectra <- matrix(as.numeric(unlist(gas$NIR)), nrow = 60, byrow = TRUE)
+colnames(nir_spectra) <- colnames(gas$NIR)
+nir_spectra <- t(nir_spectra)  # Transpose to have 401 rows and 60 columns
+octane <- gas$octane
+
+# Define the B-spline basis functions manually
+basis_functions <- bs(seq(900, 1700, by = 2), df = 20, degree = 3, intercept = TRUE)
+
+# Transform the nir_spectra using the B-spline basis functions
+basis_expansion <- function(data, basis) {
+  n <- ncol(data)
+  expanded_data <- matrix(NA, nrow = nrow(data), ncol = n * ncol(basis))
+  for (i in 1:n) {
+    expanded_data[, ((i - 1) * ncol(basis) + 1):(i * ncol(basis))] <- data[, i] %*% t(basis)
+  }
+  return(expanded_data)
+}
+
+nir_fd_coefs <- basis_expansion(nir_spectra, basis_functions)
+
+# Fit a linear model using the coefficients
+lm_model <- lm(octane ~ nir_fd_coefs - 1)  # Remove intercept to match manual prediction
+
+# Summarize the model
+summary(lm_model)
+
+# Manual prediction using the fitted coefficients
+fitted_coefficients <- coef(lm_model)
+octane_pred_manual <- nir_fd_coefs %*% fitted_coefficients
+
+# Create a data frame for plotting
+results <- data.frame(Actual = octane, Predicted = octane_pred_manual)
+
+# Plot actual vs predicted values
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(color = 'blue') +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
+  labs(title = "Actual vs Predicted Octane Ratings",
+       x = "Actual Octane Rating",
+       y = "Predicted Octane Rating") +
+  theme_minimal()
+
+# Interpretation
+summary(lm_model)
+
+# Print the coefficients
+print(fitted_coefficients)
+
+# Discuss the model performance
+# The R-squared value and the p-values of the coefficients will give us an idea of the model's performance.
+# A high R-squared value indicates a good fit, while low p-values suggest that the predictors are significant.
+
+
+```
