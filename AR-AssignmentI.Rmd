@@ -315,6 +315,15 @@ tensor_product_spline_result = tensor_product_spline(
   0.00001
   )
 
+# Visualize the original data
+ggplot(brain_data, aes(x = X, y = Y)) +
+  geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
+  scale_color_viridis_c() +
+  labs(title = "Original Data",
+       x = "X",
+       y = "Y",
+       color = "Observed medFPQ") +
+  theme_minimal()
 
 # Visualize the results
 brain_data <- brain_data %>% mutate(Fitted = tensor_product_spline_result$fitted_values)
@@ -330,7 +339,19 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        color = "Observed medFPQ") +
   theme_minimal()
 
+
+# Visualize the observed medFPQ values
+ggplot(brain_data, aes(x = X, y = Y)) +
+  geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
+  scale_color_viridis_c() +
+  labs(title = "Observed medFPQ",
+       x = "X",
+       y = "Y",
+       color = "Observed medFPQ") +
+  theme_minimal()
 ```
+
+
 ```{r}
 # Create a data frame with original data and fitted values
 plot_data <- data.frame(
@@ -346,17 +367,21 @@ plot_data_long <- tidyr::pivot_longer(plot_data,
                                       names_to = "Type",
                                       values_to = "Value")
 
+# Change the order of the factors in the Type column to show "Original" first
+plot_data_long$Type <- factor(plot_data_long$Type, levels = c("Original", "Fitted"))
+
 # Create the plot
 ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
   geom_tile() +
   facet_wrap(~ Type) +
   scale_fill_viridis_c() +
-  labs(title = "Original vs Fitted Values",
+  labs(title = "Tensor Product Original vs Fitted Values",
        x = "X coordinate",
        y = "Y coordinate",
        fill = "medFPQ") +
   theme_minimal() +
   theme(aspect.ratio = 1)
+
 
 ```
 
@@ -370,12 +395,12 @@ rm(list=ls())
 
 data("brain")
 
-brain_data = brain%>%as_tibble()%>%
-             select(X,Y, medFPQ)
+brain_data = brain %>% as_tibble() %>%
+             select(X, Y, medFPQ)
 
 # Radial Basis function
 tps_basis = function(r){
-  ifelse(r>0, r^2 * log(r), 0)
+  ifelse(r > 0, r^2 * log(r), 0)
 }
 
 create_design_matrix = function(data, knots){
@@ -393,7 +418,7 @@ create_design_matrix = function(data, knots){
   
   A = cbind(1, data)
   X = cbind(A, B)
-  return (list (X=X, A=A, B=B))
+  return (list(X = X, A = A, B = B))
 }
 
 thin_plate_spline = function(data, lambda, num_knots){
@@ -411,18 +436,18 @@ thin_plate_spline = function(data, lambda, num_knots){
   # Create penalty matrix
   m = ncol(B)
   P = rbind(
-    cbind(matrix(0,3,3), matrix(0,3,m)),
-    cbind(matrix(0,m,3), B[knot_indices,])
+    cbind(matrix(0, 3, 3), matrix(0, 3, m)),
+    cbind(matrix(0, m, 3), B[knot_indices,])
   )
   y = as.matrix(data[, 3])
-  XtX_plus_p = t(X)%*%X + (lambda * P )
-  XtY = t(X)%*%y
-  beta_hat = solve(XtX_plus_p)%*%XtY
+  XtX_plus_p = t(X) %*% X + (lambda * P)
+  XtY = t(X) %*% y
+  beta_hat = solve(XtX_plus_p) %*% XtY
   fitted_values = X %*% beta_hat
   colnames(fitted_values) = "Fitted"
   H = X %*% solve(XtX_plus_p) %*% t(X)
   se_errors = sqrt(diag(H))
-  return (list(fitted_values = fitted_values , se_errors = se_errors))
+  return (list(fitted_values = fitted_values, se_errors = se_errors))
 }
 
 tps_result = thin_plate_spline(brain_data, 0.0001, 10)
@@ -437,7 +462,10 @@ plot_data <- data.frame(
 )
 
 # Reshape the data for plotting
-plot_data_long <- tidyr::pivot_longer(plot_data, cols = c(Original, Fitted),names_to = "Type", values_to = "medFPQ")
+plot_data_long <- tidyr::pivot_longer(plot_data, cols = c(Original, Fitted), names_to = "Type", values_to = "medFPQ")
+
+# Change the order of the factors in the Type column to show "Original" first
+plot_data_long$Type <- factor(plot_data_long$Type, levels = c("Original", "Fitted"))
 
 p = ggplot(plot_data_long, aes(x = X, y = Y, fill = medFPQ)) +
   geom_tile() +
@@ -686,17 +714,15 @@ coef(lm_model)
 
 ```{r}
 # Load necessary libraries
-install.packages("gamair")
 library(gamair)
 library(ggplot2)
 library(splines)
-
 rm(list = ls())
+
 # Load the data
 data(gas)
 
 # Extract the spectra and octane ratings
-# Ensure the nir_spectra data is a matrix and transpose it
 nir_spectra <- matrix(as.numeric(unlist(gas$NIR)), nrow = 60, byrow = TRUE)
 colnames(nir_spectra) <- colnames(gas$NIR)
 nir_spectra <- t(nir_spectra)  # Transpose to have 401 rows and 60 columns
@@ -705,27 +731,43 @@ octane <- gas$octane
 # Define the B-spline basis functions manually
 basis_functions <- bs(seq(900, 1700, by = 2), df = 20, degree = 3, intercept = TRUE)
 
-# Transform the nir_spectra using the B-spline basis functions
+# Check dimensions
+print(dim(nir_spectra))  # Should be 401 x 60
+print(dim(basis_functions))  # Should be 401 x (number of basis functions)
+
+# Corrected basis_expansion function
 basis_expansion <- function(data, basis) {
-  n <- ncol(data)
-  expanded_data <- matrix(NA, nrow = nrow(data), ncol = n * ncol(basis))
-  for (i in 1:n) {
-    expanded_data[, ((i - 1) * ncol(basis) + 1):(i * ncol(basis))] <- data[, i] %*% t(basis)
+  expanded_data <- matrix(0, nrow = ncol(basis), ncol = ncol(data))
+  for (i in 1:ncol(data)) {
+    expanded_data[, i] <- t(basis) %*% data[, i]
   }
   return(expanded_data)
 }
 
+# Apply basis expansion
 nir_fd_coefs <- basis_expansion(nir_spectra, basis_functions)
 
-# Fit a linear model using the coefficients
-lm_model <- lm(octane ~ nir_fd_coefs - 1)  # Remove intercept to match manual prediction
+# Verify the dimensions of nir_fd_coefs and octane
+print(dim(nir_fd_coefs))
+print(length(octane))
+
+# Convert nir_fd_coefs to a data frame
+nir_fd_coefs_df <- as.data.frame(t(nir_fd_coefs))
+colnames(nir_fd_coefs_df) <- paste0("X", 1:ncol(nir_fd_coefs_df))
+
+# Combine octane and nir_fd_coefs_df into a single data frame
+model_data <- cbind(octane = octane, nir_fd_coefs_df)
+
+# Fit the linear model
+formula <- as.formula(paste("octane ~", paste(colnames(nir_fd_coefs_df), collapse = " + "), "- 1"))
+lm_model <- lm(formula, data = model_data)
 
 # Summarize the model
 summary(lm_model)
 
 # Manual prediction using the fitted coefficients
 fitted_coefficients <- coef(lm_model)
-octane_pred_manual <- nir_fd_coefs %*% fitted_coefficients
+octane_pred_manual <- as.matrix(nir_fd_coefs_df) %*% fitted_coefficients
 
 # Create a data frame for plotting
 results <- data.frame(Actual = octane, Predicted = octane_pred_manual)
@@ -739,15 +781,8 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
        y = "Predicted Octane Rating") +
   theme_minimal()
 
-# Interpretation
-summary(lm_model)
-
 # Print the coefficients
 print(fitted_coefficients)
-
-# Discuss the model performance
-# The R-squared value and the p-values of the coefficients will give us an idea of the model's performance.
-# A high R-squared value indicates a good fit, while low p-values suggest that the predictors are significant.
 
 
 ```
