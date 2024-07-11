@@ -541,6 +541,8 @@ table(Predicted = y_pred_binary, Actual = y_test)
 ```
 
 
+# Q4
+
 ```{r}
 
 library(fds)
@@ -645,6 +647,8 @@ ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
        x = "Wavelet Coefficient Index",
        y = "Coefficient Value")
 ```
+
+# Q5
 
 ```{r}
 # Load necessary libraries
