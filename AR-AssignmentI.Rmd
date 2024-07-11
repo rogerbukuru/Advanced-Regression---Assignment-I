@@ -506,7 +506,7 @@ y_test <- test$Class
 
 # Fit Logistic Regession Model (GLM)
 
-log_regression_model = glm(Class ~., data = train, family = binomial)
+#log_regression_model = glm(Class ~., data = train, family = binomial)
 
 
 #gam_model <- gam(Class ~ s(Mean_Integrated) + s(SD) + s(EK) + s(Skewness) + s(Mean_DMSNR_Curve) + s(SD_DMSNR_Curve) + #s(EK_DMSNR_Curve) + s(Skewness_DMSNR_Curve), data = training_data, family = binomial)
@@ -529,7 +529,7 @@ y_pred <- predict(mars_model, newdata = X_test, type = "response")
 
 # Convert predictions to binary outcomes
 y_pred_binary <- ifelse(y_pred > 0.5, 1, 0)
-
+v
 # Evaluate the model
 accuracy <- mean(y_pred_binary == y_test)
 cat("Accuracy:", accuracy, "\n")
@@ -540,6 +540,92 @@ table(Predicted = y_pred_binary, Actual = y_test)
 
 ```
 
+
+```{r}
+# Install the packages first if not already installed
+# install.packages("earth")
+# install.packages("caret")
+# install.packages("ggplot2")
+
+library(earth)
+library(caret)
+library(ggplot2)
+rm(list = ls())
+
+# Load the dataset
+pulsar_data <- read.csv("Pulsar.csv", header = TRUE, sep = ",")
+
+# Check the structure of the dataset
+str(pulsar_data)
+
+# Define the features (X) and the target (y)
+X <- pulsar_data[, !(names(pulsar_data) %in% c("Class"))]
+y <- pulsar_data$Class
+
+# Verify the dimensions of the features and target
+print(dim(X))
+print(length(y))
+
+# Split the data into training (80%) and testing (20%) sets
+set.seed(0)
+trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
+X_train <- X[trainIndex, ]
+X_test <- X[-trainIndex, ]
+y_train <- y[trainIndex]
+y_test <- y[-trainIndex]
+
+# Combine X and y for training
+train_data <- data.frame(X_train, target = y_train)
+
+# Check the structure and dimensions of the training data
+str(train_data)
+print(dim(train_data))
+
+# Initialize and fit the MARS model
+mars_model <- earth(target ~ ., data = train_data)
+
+# Predict on the test data
+test_data <- data.frame(X_test)
+y_pred_prob <- predict(mars_model, test_data)
+
+# Convert predicted probabilities to class labels
+y_pred <- ifelse(y_pred_prob > 0.5, 1, 0)
+
+# Calculate the confusion matrix
+conf_matrix <- confusionMatrix(as.factor(y_pred), as.factor(y_test))
+print(conf_matrix)
+
+# Extract performance metrics
+accuracy <- conf_matrix$overall['Accuracy']
+sensitivity <- conf_matrix$byClass['Sensitivity']
+specificity <- conf_matrix$byClass['Specificity']
+precision <- conf_matrix$byClass['Precision']
+f1 <- conf_matrix$byClass['F1']
+
+# Create a data frame to store the metrics
+metrics <- data.frame(
+  Metric = c("Accuracy", "Sensitivity", "Specificity", "Precision", "F1 Score"),
+  Value = c(accuracy, sensitivity, specificity, precision, f1)
+)
+
+# Print the metrics table
+print(metrics)
+
+# Create the results data frame
+results <- data.frame(Actual = y_test, Predicted_Prob = y_pred_prob)
+
+# Print the structure and head of the results data frame
+str(results)
+head(results)
+
+# # Visualize the results using ggplot2
+# ggplot(results, aes(x = Actual, y = Predicted_Prob)) +
+#   geom_point(alpha = 0.5) +
+#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+#   labs(title = "Actual vs Predicted Probabilities", x = "Actual values", y = "Predicted probabilities") +
+#   theme_minimal()
+
+```
 
 # Q4
 
