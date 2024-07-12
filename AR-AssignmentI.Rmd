@@ -630,19 +630,18 @@ head(results)
 # Q4
 
 ```{r}
-
 library(fds)
 library(wavelets)
 library(glmnet)
 library(ggplot2)
 library(wavethresh)
+library(tidyr)
 
-#library(SCBmeanfd)
 rm(list = ls())
+
 # Load the phoneme data from fds package
 data(aa)
 data(ao)
-
 
 aa_data <- aa$y
 ao_data <- ao$y
@@ -650,29 +649,61 @@ ao_data <- ao$y
 X <- rbind(aa_data, ao_data)
 y <- c(rep(0, nrow(aa_data)), rep(1, nrow(ao_data)))
 
+# Plot a sample of signals from aa and ao classes
+plot_signals <- function(data, title, sample_size = 10) {
+  sampled_data <- data[sample(nrow(data), sample_size), ]
+  signal_data <- as.data.frame(t(sampled_data))
+  signal_data$Index <- 1:nrow(signal_data)
+  signal_data_long <- pivot_longer(signal_data, -Index, names_to = "Sample", values_to = "Amplitude")
+  
+  ggplot(signal_data_long, aes(x = Index, y = Amplitude, color = Sample)) +
+    geom_line(alpha = 0.5) +
+    labs(title = title, x = "Index", y = "Amplitude") +
+    theme_minimal()
+}
+
+plot_aa <- plot_signals(aa_data, "Sample of Signals from 'aa' Class")
+plot_ao <- plot_signals(ao_data, "Sample of Signals from 'ao' Class")
+
+print(plot_aa)
+print(plot_ao)
+
 # Function to apply wavelet transform
 apply_wavelet <- function(data, n_coef = 256) {
-  # Find the next power of 2 that's at least as large as the data length
   next_power_of_2 <- 2^ceiling(log2(length(data)))
-  
-  # Pad the data with zeros to reach the next power of 2
   padded_data <- c(data, rep(0, next_power_of_2 - length(data)))
   
   wt <- wd(padded_data, filter.number = 10, family = "DaubLeAsymm")
-  
-  # Get all available levels
   all_levels <- 0:(nlevelsWT(wt) - 1)
-  
-  # Collect coefficients from all levels
   all_coefs <- unlist(lapply(all_levels, function(l) accessD(wt, level = l)))
   
-  # Return the first n_coef coefficients (or all if less than n_coef)
   return(all_coefs[1:min(length(all_coefs), n_coef)])
 }
 
 # Apply wavelet transform to each row
 X_wavelet <- t(apply(X, 1, apply_wavelet))
 
+# Plot a sample of wavelet coefficients
+plot_wavelet_coeffs <- function(data, title, sample_size = 10) {
+  sampled_data <- data[sample(nrow(data), sample_size), ]
+  coeff_data <- as.data.frame(t(sampled_data))
+  coeff_data$Index <- 1:nrow(coeff_data)
+  coeff_data_long <- pivot_longer(coeff_data, -Index, names_to = "Sample", values_to = "Coefficient")
+  
+  ggplot(coeff_data_long, aes(x = Index, y = Coefficient, color = Sample)) +
+    geom_line(alpha = 0.5) +
+    labs(title = title, x = "Coefficient Index", y = "Coefficient Value") +
+    theme_minimal()
+}
+
+aa_wavelet <- t(apply(aa_data, 1, apply_wavelet))
+ao_wavelet <- t(apply(ao_data, 1, apply_wavelet))
+
+plot_aa_wavelet <- plot_wavelet_coeffs(aa_wavelet, "Sample of Wavelet Coefficients for 'aa' Class")
+plot_ao_wavelet <- plot_wavelet_coeffs(ao_wavelet, "Sample of Wavelet Coefficients for 'ao' Class")
+
+print(plot_aa_wavelet)
+print(plot_ao_wavelet)
 
 # Split data
 set.seed(123)
@@ -690,7 +721,6 @@ cv_fit <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 1)
 best_lambda <- cv_fit$lambda.min
 model <- glmnet(X_train, y_train, family = "binomial", alpha = 1, lambda = best_lambda)
 
-
 # Make predictions
 predictions <- predict(model, X_test, type = "response")
 predicted_classes <- ifelse(predictions > 0.5, 1, 0)
@@ -704,24 +734,37 @@ conf_matrix <- table(Predicted = predicted_classes, Actual = y_test)
 print("Confusion Matrix:")
 print(conf_matrix)
 
+# Calculate evaluation metrics
+precision <- conf_matrix[2, 2] / (conf_matrix[2, 2] + conf_matrix[2, 1])
+recall <- conf_matrix[2, 2] / (conf_matrix[2, 2] + conf_matrix[1, 2])
+f1_score <- 2 * precision * recall / (precision + recall)
+
+metrics <- data.frame(
+  Metric = c("Accuracy", "Precision", "Recall", "F1 Score"),
+  Value = c(accuracy, precision, recall, f1_score)
+)
+
+print(metrics)
+
 # Get feature importances
-coef_importance <- abs(coef(model))[-1]  # Exclude intercept
+coef_importance <- abs(coef(model)[-1])
 top_features <- order(coef_importance, decreasing = TRUE)[1:10]
 
 print("Top 10 most important wavelet coefficients:")
 print(top_features)
 
 # Plot feature importances
-plot(coef_importance, main = "Wavelet Coefficient Importances", 
-     xlab = "Coefficient Index", ylab = "Absolute Coefficient Value")
-points(top_features, coef_importance[top_features], col = "red", pch = 19)
-
-
-coefficients <- coef(model)
+ggplot(data.frame(Index = 1:length(coef_importance), Importance = coef_importance), 
+       aes(x = Index, y = Importance)) +
+  geom_point() +
+  geom_point(data = data.frame(Index = top_features, Importance = coef_importance[top_features]), 
+             aes(x = Index, y = Importance), color = "red", size = 3) +
+  labs(title = "Wavelet Coefficient Importances", x = "Coefficient Index", y = "Absolute Coefficient Value") +
+  theme_minimal()
 
 # Extract and plot the non-zero coefficients
-non_zero_coeffs <- coefficients[coefficients != 0]
-non_zero_indices <- which(coefficients != 0)
+non_zero_coeffs <- coef(model)[coef(model) != 0]
+non_zero_indices <- which(coef(model) != 0)
 
 # Create a data frame for plotting
 coeff_data <- data.frame(Index = non_zero_indices, Coefficient = non_zero_coeffs)
@@ -731,7 +774,9 @@ ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
   geom_bar(stat = "identity") +
   labs(title = "Non-zero Coefficients from Penalized Logistic Regression",
        x = "Wavelet Coefficient Index",
-       y = "Coefficient Value")
+       y = "Coefficient Value") +
+  theme_minimal()
+
 ```
 
 # Q5
@@ -746,7 +791,6 @@ rm(list = ls())
 # Load the data
 data(gas)
 
-
 # Extract the spectra and octane ratings
 # Ensure the nir_spectra data is a matrix and transpose it
 
@@ -755,14 +799,13 @@ colnames(nir_spectra) = colnames(gas$NIR)
 nir_spectra <- t(nir_spectra)  # Transpose to have 401 rows and 60 columns
 octane <- gas$octane
 
-
 # Define the basis
 nir_basis <- create.bspline.basis(rangeval = c(900, 1700), nbasis = 20)
 
 # Convert the spectra to functional data object
 nir_fd <- smooth.basis(argvals = seq(900, 1700, by = 2), y = nir_spectra, fdParobj = nir_basis)$fd
 
-# Plot the first few spectra
+# Plot the first few spectra using the built-in plot function
 plot(nir_fd, main = "NIR Spectra", xlab = "Wavelength (nm)", ylab = "log(1/R)")
 
 # Get the coefficients of the functional data object
@@ -780,7 +823,7 @@ octane_pred <- predict(lm_model)
 # Create a data frame for plotting
 results <- data.frame(Actual = octane, Predicted = octane_pred)
 
-# Plot actual vs predicted values
+# Plot actual vs predicted values using ggplot
 ggplot(results, aes(x = Actual, y = Predicted)) +
   geom_point(color = 'blue') +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
@@ -789,11 +832,19 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
        y = "Predicted Octane Rating") +
   theme_minimal()
 
-# Interpretation
-summary(lm_model)
-
 # Print the coefficients
-coef(lm_model)
+coefficients <- coef(lm_model)
+
+# Create a data frame for the coefficients
+coef_data <- data.frame(Index = 1:length(coefficients), Coefficient = coefficients)
+
+# Plot the coefficients using ggplot
+ggplot(coef_data, aes(x = Index, y = Coefficient)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Coefficients of the NIR Spectra",
+       x = "Coefficient Index",
+       y = "Coefficient Value") +
+  theme_minimal()
 
 # Discuss the model performance
 # The R-squared value and the p-values of the coefficients will give us an idea of the model's performance.
@@ -874,5 +925,18 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
 # Print the coefficients
 print(fitted_coefficients)
 
+# Plot all the NIR spectra using ggplot2 with colors
+nir_spectra_df <- as.data.frame(nir_spectra)
+nir_spectra_df$Wavelength <- seq(900, 1700, by = 2)
+
+nir_spectra_long <- tidyr::pivot_longer(nir_spectra_df, cols = -Wavelength, names_to = "Sample", values_to = "log1R")
+
+ggplot(nir_spectra_long, aes(x = Wavelength, y = log1R, group = Sample, color = Sample)) +
+  geom_line(alpha = 0.5) +
+  labs(title = "NIR Spectra",
+       x = "Wavelength (nm)",
+       y = "log(1/R)") +
+  theme_minimal() +
+  theme(legend.position = "none")
 
 ```
