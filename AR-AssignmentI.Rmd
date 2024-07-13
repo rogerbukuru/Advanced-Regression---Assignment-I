@@ -1,12 +1,12 @@
 ---
-title: "AR - Assignment I"
+title: "Advanced Regression - Assignment I"
 author: "Roger Bukuru"
 date: "`r Sys.Date()`"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 # Question 1
@@ -281,7 +281,7 @@ tensor_product_spline_result = tensor_product_spline(
   0.00001
 )
 
-# Visualize the original data
+
 ggplot(brain_data, aes(x = X, y = Y)) +
   geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
   scale_color_viridis_c() +
@@ -326,7 +326,7 @@ plot_data_long <- tidyr::pivot_longer(plot_data,
 
 plot_data_long$Type <- factor(plot_data_long$Type, levels = c("Original", "Fitted"))
 
-# Create the plot
+
 ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
   geom_tile() +
   facet_wrap(~ Type) +
@@ -369,7 +369,6 @@ create_design_matrix = function(data, knots){
   # Compute pairwise distances
   distances <- fields::rdist(data_mat, knots_mat)
   
-  # Apply the thin-plate spline basis function to all distances at once
   B <- apply(distances, c(1,2), tps_basis)
   
   A = cbind(1, data)
@@ -382,13 +381,11 @@ thin_plate_spline = function(data, lambda, num_knots){
   knot_indices = seq(1, n, length.out = num_knots) 
   knots = data[knot_indices, 1:2]
   
-  # Create design matrix
   design_matrix = create_design_matrix(data[,1:2], knots)
   X = as.matrix(design_matrix$X)
   A = design_matrix$A
   B = design_matrix$B
   
-  # Create penalty matrix
   m = ncol(B)
   P = rbind(
     cbind(matrix(0, 3, 3), matrix(0, 3, m)),
@@ -409,7 +406,6 @@ tps_result = thin_plate_spline(brain_data, 0.5, 10)
 
 head(tps_result$fitted_values)
 
-# Visualize the fitted thin-plate spline without the original data
 brain_data <- brain_data %>% mutate(Fitted = tps_result$fitted_values)
 
 ggplot(brain_data, aes(x = X, y = Y)) +
@@ -421,7 +417,6 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        fill = "Fitted medFPQ") +
   theme_minimal()
 
-# Reshape the data for plotting
 plot_data <- data.frame(
   X = brain_data$X,
   Y = brain_data$Y,
@@ -431,7 +426,6 @@ plot_data <- data.frame(
 
 plot_data_long <- tidyr::pivot_longer(plot_data, cols = c(Original, Fitted), names_to = "Type", values_to = "medFPQ")
 
-# Change the order of the factors in the Type column to show "Original" first
 plot_data_long$Type <- factor(plot_data_long$Type, levels = c("Original", "Fitted"))
 
 p = ggplot(plot_data_long, aes(x = X, y = Y, fill = medFPQ)) +
@@ -455,33 +449,26 @@ ggsave("tps_original_vs_fitted.png", p, width = 12, height = 6)
 ## Tensor Product and Thin Plate Spline: Using mgcv function
 
 ```{r}
-# Load necessary libraries
 library(gamair)
 library(mgcv)
 library(tidyverse)
 library(ggplot2)
 
-# Load the data
 data(brain)
 brain_data <- brain %>%
   as_tibble() %>%
   select(X, Y, medFPQ)
 
-# Fit the tensor-product spline model using mgcv
 tp_model <- gam(medFPQ ~ te(X, Y, k = 10), data = brain_data)
 
-# Fit the thin-plate spline model using mgcv
 tps_model <- gam(medFPQ ~ s(X, Y, bs = "tp", k = 100), data = brain_data)
 
-# Summarize the models
 summary(tp_model)
 summary(tps_model)
 
-# Predict using the mgcv models
 brain_data$Fitted_tp <- predict(tp_model, newdata = brain_data)
 brain_data$Fitted_tps <- predict(tps_model, newdata = brain_data)
 
-# Plot the original data
 original_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = medFPQ)) +
   geom_tile() +
   scale_fill_viridis_c() +
@@ -491,7 +478,6 @@ original_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = medFPQ)) +
        fill = "medFPQ") +
   theme_minimal()
 
-# Plot the tensor-product spline fitted data
 tp_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tp)) +
   geom_tile() +
   scale_fill_viridis_c() +
@@ -501,7 +487,6 @@ tp_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tp)) +
        fill = "Fitted medFPQ") +
   theme_minimal()
 
-# Plot the thin-plate spline fitted data
 tps_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tps)) +
   geom_tile() +
   scale_fill_viridis_c() +
@@ -510,12 +495,6 @@ tps_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tps)) +
        y = "Y coordinate",
        fill = "Fitted medFPQ") +
   theme_minimal()
-
-# Save the plots
-ggsave("original_plot.png", original_plot, width = 8, height = 6)
-ggsave("tp_plot.png", tp_plot, width = 8, height = 6)
-ggsave("tps_plot.png", tps_plot, width = 8, height = 6)
-
 
 ```
 
@@ -526,6 +505,7 @@ ggsave("tps_plot.png", tps_plot, width = 8, height = 6)
 
 ```{r}
 library(mgcv)
+library(caret)
 rm(list = ls())
 pulsar_data = read.csv2("Pulsar.csv", header = TRUE, sep=",")
 head(pulsar_data)
@@ -543,37 +523,22 @@ X_test <- test[, !names(test) %in% "Class"]
 y_test <- test$Class
 
 # Fit Logistic Regession Model (GLM)
-
-#log_regression_model = glm(Class ~., data = train, family = binomial)
-
-
-#gam_model <- gam(Class ~ s(Mean_Integrated) + s(SD) + s(EK) + s(Skewness) + s(Mean_DMSNR_Curve) + s(SD_DMSNR_Curve) + #s(EK_DMSNR_Curve) + s(Skewness_DMSNR_Curve), data = training_data, family = binomial)
-
+# #glm_model = glm(Class ~., data = train, family = binomial)
+# glm_pred <- predict(glm_model, newdata = dataTest, type = "response")
+# glm_class <- ifelse(glm_pred > 0.5, 1, 0)
+# glm_confusion <- confusionMatrix(as.factor(glm_class), as.factor(dataTest$Class))
+# glm_confusion
+# 
+# Fit GAM Model
+# gam_model <- gam(Class ~ s(Mean_Integrated) + s(SD) + s(EK) + s(Skewness) + s(Mean_DMSNR_Curve) + s(SD_DMSNR_Curve) + s(EK_DMSNR_Curve) + s(Skewness_DMSNR_Curve), data = training_data, family = binomial)
+# gam_pred <- predict(gam_model, newdata = dataTest, type = "response")
+# gam_class <- ifelse(gam_pred > 0.5, 1, 0)
+# gam_confusion <- confusionMatrix(as.factor(gam_class), as.factor(dataTest$Class))
+# gam_confusion
 ```
 
 
 ## MARS
-
-```{r}
-library(earth)
-
-# Fit the MARS model
-mars_model <- earth(Class ~ ., data = train)
-
-
-y_pred <- predict(mars_model, newdata = X_test, type = "response")
-
-y_pred_binary <- ifelse(y_pred > 0.5, 1, 0)
-
-# Evaluate the model
-accuracy <- mean(y_pred_binary == y_test)
-cat("Accuracy:", accuracy, "\n")
-
-# Confusion matrix and classification report
-table(Predicted = y_pred_binary, Actual = y_test)
-
-```
-
 
 ```{r}
 library(earth)
@@ -583,24 +548,20 @@ rm(list = ls())
 
 pulsar_data <- read.csv("Pulsar.csv", header = TRUE, sep = ",")
 
-
-# Define the features (X) and the target (y)
 X <- pulsar_data[, !(names(pulsar_data) %in% c("Class"))]
 y <- pulsar_data$Class
 
 # Split the data into training (80%) and testing (20%) sets
-set.seed(0)
+set.seed(5749)
 trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
 X_train <- X[trainIndex, ]
 X_test <- X[-trainIndex, ]
 y_train <- y[trainIndex]
 y_test <- y[-trainIndex]
 
-# Combine X and y for training
 train_data <- data.frame(X_train, target = y_train)
 
-
-# Initialize and fit the MARS model
+# Fit MARS model
 mars_model <- earth(target ~ ., data = train_data)
 
 # Predict on the test data
@@ -625,23 +586,10 @@ metrics <- data.frame(
   Metric = c("Accuracy", "Sensitivity", "Specificity", "Precision", "F1 Score"),
   Value = c(accuracy, sensitivity, specificity, precision, f1)
 )
-
-# Print the metrics table
 print(metrics)
 
-# Create the results data frame
 results <- data.frame(Actual = y_test, Predicted_Prob = y_pred_prob)
-
-# Print the structure and head of the results data frame
-str(results)
-head(results)
-
-# # Visualize the results using ggplot2
-# ggplot(results, aes(x = Actual, y = Predicted_Prob)) +
-#   geom_point(alpha = 0.5) +
-#   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-#   labs(title = "Actual vs Predicted Probabilities", x = "Actual values", y = "Predicted probabilities") +
-#   theme_minimal()
+results
 
 ```
 
@@ -786,7 +734,6 @@ ggplot(data.frame(Index = 1:length(coef_importance), Importance = coef_importanc
 non_zero_coeffs <- coef(model)[coef(model) != 0]
 non_zero_indices <- which(coef(model) != 0)
 
-# Create a data frame for plotting
 coeff_data <- data.frame(Index = non_zero_indices, Coefficient = non_zero_coeffs)
 
 # Plot the non-zero coefficients
@@ -801,65 +748,6 @@ ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
 ```
 
 # Question 5: Functional Data Analysis
-
-```{r}
-library(gamair)
-library(ggplot2)
-library(fda)
-
-rm(list = ls())
-data(gas)
-
-
-nir_spectra <- matrix(as.numeric(unlist(gas$NIR)), nrow = 60, byrow = TRUE)
-colnames(nir_spectra) = colnames(gas$NIR)
-nir_spectra <- t(nir_spectra)  # Transpose to have 401 rows and 60 columns
-octane <- gas$octane
-
-# Define the basis
-nir_basis <- create.bspline.basis(rangeval = c(900, 1700), nbasis = 20)
-
-# Convert the spectra to functional data object
-nir_fd <- smooth.basis(argvals = seq(900, 1700, by = 2), y = nir_spectra, fdParobj = nir_basis)$fd
-
-
-plot(nir_fd, main = "NIR Spectra", xlab = "Wavelength (nm)", ylab = "log(1/R)")
-
-# Get the coefficients of the functional data object
-nir_fd_coefs <- t(eval.fd(seq(900, 1700, by = 2), nir_fd))
-
-# Fit a linear model using the coefficients
-lm_model <- lm(octane ~ nir_fd_coefs)
-
-summary(lm_model)
-
-# Predict octane ratings
-octane_pred <- predict(lm_model)
-
-results <- data.frame(Actual = octane, Predicted = octane_pred)
-
-# Plot actual vs predicted values using ggplot
-ggplot(results, aes(x = Actual, y = Predicted)) +
-  geom_point(color = 'blue') +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "red") +
-  labs(title = "Actual vs Predicted Octane Ratings",
-       x = "Actual Octane Rating",
-       y = "Predicted Octane Rating") +
-  theme_minimal()
-
-coefficients <- coef(lm_model)
-
-coef_data <- data.frame(Index = 1:length(coefficients), Coefficient = coefficients)
-
-# Plot the coefficients using ggplot
-ggplot(coef_data, aes(x = Index, y = Coefficient)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Coefficients of the NIR Spectra",
-       x = "Coefficient Index",
-       y = "Coefficient Value") +
-  theme_minimal()
-
-```
 
 
 ```{r}
@@ -879,7 +767,7 @@ octane <- gas$octane
 # Define the B-spline basis functions
 basis_functions <- bs(seq(900, 1700, by = 2), df = 20, degree = 3, intercept = TRUE)
 
-
+# Define function to implement basis expansion
 basis_expansion <- function(data, basis) {
   expanded_data <- matrix(0, nrow = ncol(basis), ncol = ncol(data))
   for (i in 1:ncol(data)) {
