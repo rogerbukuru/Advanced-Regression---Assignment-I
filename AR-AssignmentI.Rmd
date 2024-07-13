@@ -920,7 +920,6 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
 
 print(fitted_coefficients)
 
-# Plot all the NIR spectra using ggplot2 with colors
 nir_spectra_df <- as.data.frame(nir_spectra)
 nir_spectra_df$Wavelength <- seq(900, 1700, by = 2)
 
