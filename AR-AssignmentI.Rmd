@@ -188,8 +188,6 @@ ggplot(gcv_data, aes(x = lambda, y = gcv)) +
 # Question 2
 
 ```{r}
-
-
 library(gamair)
 library(tidyverse)
 library(dplyr)
@@ -231,24 +229,14 @@ tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_position
   
   P = lambda * tensor_penalty_matrix
   X  = tensor_basis_matrix[1:nrow(y_data),]
-  #X = scale(X, scale=TRUE, center=TRUE)
-  #P = scale(P, scale=TRUE, center=TRUE)
   XtX_plus_p = t(X)%*%X + P 
   
-  # Add a small constant to the diagonal for numerical stability
-  #epsilon = 1e-8
-  #XtX_plus_p = XtX_plus_p + diag(epsilon, nrow(XtX_plus_p))
-  
-  #print(dim(t(X)))
-  #print(dim(y_data))
   XtY = t(X)%*%y_data
- #print(dim(XtX_plus_p))
   beta_hat = MASS::ginv(XtX_plus_p)%*%XtY
   fitted_values = X %*% beta_hat
   H = X %*% MASS::ginv(XtX_plus_p) %*% t(X)
   se_errors = sqrt(diag(H))
   return (list(fitted_values = fitted_values , se_errors = se_errors))
- #return(tensor_basis_matrix)
 }
 
 compute_tensor_product = function(A, B){
@@ -267,12 +255,6 @@ compute_tensor_product = function(A, B){
 
 x_knots <- seq(min(brain_data$X), max(brain$X), length.out = 10) 
 y_knots <- seq(min(brain_data$Y), max(brain$Y), length.out = 10) 
-#x_knot_positions <- x_knots[-c(1, length(x_knots))]
-#y_knot_positions <- y_knots[-c(1, length(y_knots))]
-
-
-
-# # Construct penalty matrix
 
 # Construct penalty matrix
 construct_penalty_matrix <- function(knots) {
@@ -288,22 +270,6 @@ construct_penalty_matrix <- function(knots) {
 S_x = construct_penalty_matrix(x_knots)
 S_y = construct_penalty_matrix(y_knots)
 
-# n_x_knots = length(x_knot_positions)
-# S_x = matrix(0, n_x_knots, n_x_knots)
-#   for(i in 1:n_x_knots){
-#    for (j in 1: n_x_knots){
-#      S_x[i,j] = R_x_z(x_knot_positions[i], x_knot_positions[j])
-#    }
-#   }
-# 
-# n_y_knots = length(y_knot_positions)
-# S_y = matrix(0, n_y_knots, n_y_knots)
-#   for(i in 1:n_y_knots){
-#    for (j in 1: n_y_knots){
-#      S_y[i,j] = R_x_z(y_knot_positions[i], y_knot_positions[j])
-#    }
-#  }
-
 tensor_product_spline_result = tensor_product_spline(
   brain_data$X, 
   brain_data$Y, 
@@ -313,7 +279,7 @@ tensor_product_spline_result = tensor_product_spline(
   S_x,
   S_y,
   0.00001
-  )
+)
 
 # Visualize the original data
 ggplot(brain_data, aes(x = X, y = Y)) +
@@ -325,20 +291,17 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        color = "Observed medFPQ") +
   theme_minimal()
 
-# Visualize the results
+# Visualize the results without the original data
 brain_data <- brain_data %>% mutate(Fitted = tensor_product_spline_result$fitted_values)
 
 ggplot(brain_data, aes(x = X, y = Y)) +
   geom_tile(aes(fill = Fitted)) +
-  geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
   scale_fill_viridis_c() +
   labs(title = "Tensor Product Spline Fit",
        x = "X",
        y = "Y",
-       fill = "Fitted medFPQ",
-       color = "Observed medFPQ") +
+       fill = "Fitted medFPQ") +
   theme_minimal()
-
 
 # Visualize the observed medFPQ values
 ggplot(brain_data, aes(x = X, y = Y)) +
@@ -349,10 +312,7 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        y = "Y",
        color = "Observed medFPQ") +
   theme_minimal()
-```
 
-
-```{r}
 # Create a data frame with original data and fitted values
 plot_data <- data.frame(
   X = brain_data$X,
@@ -382,9 +342,7 @@ ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
   theme_minimal() +
   theme(aspect.ratio = 1)
 
-
 ```
-
 
 ```{r}
 library(gamair)
@@ -425,7 +383,6 @@ thin_plate_spline = function(data, lambda, num_knots){
   n = nrow(data)
   knot_indices = seq(1, n, length.out = num_knots) 
   knots = data[knot_indices, 1:2]
-  #knots = seq(1, n, length.out = num_knots) 
   
   # Create design matrix
   design_matrix = create_design_matrix(data[,1:2], knots)
@@ -450,10 +407,23 @@ thin_plate_spline = function(data, lambda, num_knots){
   return (list(fitted_values = fitted_values, se_errors = se_errors))
 }
 
-tps_result = thin_plate_spline(brain_data, 0.0001, 10)
+tps_result = thin_plate_spline(brain_data, 0.5, 10)
 
 head(tps_result$fitted_values)
 
+# Visualize the fitted thin-plate spline without the original data
+brain_data <- brain_data %>% mutate(Fitted = tps_result$fitted_values)
+
+ggplot(brain_data, aes(x = X, y = Y)) +
+  geom_tile(aes(fill = Fitted)) +
+  scale_fill_viridis_c() +
+  labs(title = "Thin-Plate Spline Fit",
+       x = "X",
+       y = "Y",
+       fill = "Fitted medFPQ") +
+  theme_minimal()
+
+# Reshape the data for plotting
 plot_data <- data.frame(
   X = brain_data$X,
   Y = brain_data$Y,
@@ -461,7 +431,6 @@ plot_data <- data.frame(
   Fitted = tps_result$fitted_values
 )
 
-# Reshape the data for plotting
 plot_data_long <- tidyr::pivot_longer(plot_data, cols = c(Original, Fitted), names_to = "Type", values_to = "medFPQ")
 
 # Change the order of the factors in the Type column to show "Original" first
@@ -480,6 +449,74 @@ p = ggplot(plot_data_long, aes(x = X, y = Y, fill = medFPQ)) +
 
 print(p)
 ggsave("tps_original_vs_fitted.png", p, width = 12, height = 6)
+
+```
+
+
+
+## Using mgcv function
+
+```{r}
+# Load necessary libraries
+library(gamair)
+library(mgcv)
+library(tidyverse)
+library(ggplot2)
+
+# Load the data
+data(brain)
+brain_data <- brain %>%
+  as_tibble() %>%
+  select(X, Y, medFPQ)
+
+# Fit the tensor-product spline model using mgcv
+tp_model <- gam(medFPQ ~ te(X, Y, k = 10), data = brain_data)
+
+# Fit the thin-plate spline model using mgcv
+tps_model <- gam(medFPQ ~ s(X, Y, bs = "tp", k = 100), data = brain_data)
+
+# Summarize the models
+summary(tp_model)
+summary(tps_model)
+
+# Predict using the mgcv models
+brain_data$Fitted_tp <- predict(tp_model, newdata = brain_data)
+brain_data$Fitted_tps <- predict(tps_model, newdata = brain_data)
+
+# Plot the original data
+original_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = medFPQ)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Original Data",
+       x = "X coordinate",
+       y = "Y coordinate",
+       fill = "medFPQ") +
+  theme_minimal()
+
+# Plot the tensor-product spline fitted data
+tp_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tp)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Tensor-Product Spline Fit using mgcv",
+       x = "X coordinate",
+       y = "Y coordinate",
+       fill = "Fitted medFPQ") +
+  theme_minimal()
+
+# Plot the thin-plate spline fitted data
+tps_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tps)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  labs(title = "Thin-Plate Spline Fit using mgcv",
+       x = "X coordinate",
+       y = "Y coordinate",
+       fill = "Fitted medFPQ") +
+  theme_minimal()
+
+# Save the plots
+ggsave("original_plot.png", original_plot, width = 8, height = 6)
+ggsave("tp_plot.png", tp_plot, width = 8, height = 6)
+ggsave("tps_plot.png", tps_plot, width = 8, height = 6)
 
 
 ```
@@ -649,25 +686,6 @@ ao_data <- ao$y
 X <- rbind(aa_data, ao_data)
 y <- c(rep(0, nrow(aa_data)), rep(1, nrow(ao_data)))
 
-# Plot a sample of signals from aa and ao classes
-plot_signals <- function(data, title, sample_size = 10) {
-  sampled_data <- data[sample(nrow(data), sample_size), ]
-  signal_data <- as.data.frame(t(sampled_data))
-  signal_data$Index <- 1:nrow(signal_data)
-  signal_data_long <- pivot_longer(signal_data, -Index, names_to = "Sample", values_to = "Amplitude")
-  
-  ggplot(signal_data_long, aes(x = Index, y = Amplitude, color = Sample)) +
-    geom_line(alpha = 0.5) +
-    labs(title = title, x = "Index", y = "Amplitude") +
-    theme_minimal()
-}
-
-plot_aa <- plot_signals(aa_data, "Sample of Signals from 'aa' Class")
-plot_ao <- plot_signals(ao_data, "Sample of Signals from 'ao' Class")
-
-print(plot_aa)
-print(plot_ao)
-
 # Function to apply wavelet transform
 apply_wavelet <- function(data, n_coef = 256) {
   next_power_of_2 <- 2^ceiling(log2(length(data)))
@@ -683,27 +701,48 @@ apply_wavelet <- function(data, n_coef = 256) {
 # Apply wavelet transform to each row
 X_wavelet <- t(apply(X, 1, apply_wavelet))
 
-# Plot a sample of wavelet coefficients
-plot_wavelet_coeffs <- function(data, title, sample_size = 10) {
-  sampled_data <- data[sample(nrow(data), sample_size), ]
-  coeff_data <- as.data.frame(t(sampled_data))
+# Plot a sample of signals and their corresponding wavelet coefficients
+plot_samples <- function(data, wavelet_data, title_signal, title_wavelet, sample_size = 10) {
+  sampled_indices <- sample(nrow(data), sample_size)
+  sampled_data <- data[sampled_indices, ]
+  sampled_wavelet_data <- wavelet_data[sampled_indices, ]
+  
+  # Plot signals
+  signal_data <- as.data.frame(t(sampled_data))
+  signal_data$Index <- 1:nrow(signal_data)
+  signal_data_long <- pivot_longer(signal_data, -Index, names_to = "Sample", values_to = "Amplitude")
+  
+  plot_signal <- ggplot(signal_data_long, aes(x = Index, y = Amplitude, color = Sample)) +
+    geom_line(alpha = 0.5) +
+    labs(title = title_signal, x = "Index", y = "Amplitude") +
+    theme_minimal()
+  
+  # Plot wavelet coefficients
+  coeff_data <- as.data.frame(t(sampled_wavelet_data))
   coeff_data$Index <- 1:nrow(coeff_data)
   coeff_data_long <- pivot_longer(coeff_data, -Index, names_to = "Sample", values_to = "Coefficient")
   
-  ggplot(coeff_data_long, aes(x = Index, y = Coefficient, color = Sample)) +
+  plot_wavelet <- ggplot(coeff_data_long, aes(x = Index, y = Coefficient, color = Sample)) +
     geom_line(alpha = 0.5) +
-    labs(title = title, x = "Coefficient Index", y = "Coefficient Value") +
+    labs(title = title_wavelet, x = "Coefficient Index", y = "Coefficient Value") +
     theme_minimal()
+  
+  return(list(signal_plot = plot_signal, wavelet_plot = plot_wavelet))
 }
 
-aa_wavelet <- t(apply(aa_data, 1, apply_wavelet))
-ao_wavelet <- t(apply(ao_data, 1, apply_wavelet))
+# Plot for 'aa' class
+aa_plots <- plot_samples(aa_data, t(apply(aa_data, 1, apply_wavelet)), 
+                         "Sample of Signals from 'aa' Class", 
+                         "Sample of Wavelet Coefficients for 'aa' Class")
+print(aa_plots$signal_plot)
+print(aa_plots$wavelet_plot)
 
-plot_aa_wavelet <- plot_wavelet_coeffs(aa_wavelet, "Sample of Wavelet Coefficients for 'aa' Class")
-plot_ao_wavelet <- plot_wavelet_coeffs(ao_wavelet, "Sample of Wavelet Coefficients for 'ao' Class")
-
-print(plot_aa_wavelet)
-print(plot_ao_wavelet)
+# Plot for 'ao' class
+ao_plots <- plot_samples(ao_data, t(apply(ao_data, 1, apply_wavelet)), 
+                         "Sample of Signals from 'ao' Class", 
+                         "Sample of Wavelet Coefficients for 'ao' Class")
+print(ao_plots$signal_plot)
+print(ao_plots$wavelet_plot)
 
 # Split data
 set.seed(123)
@@ -720,7 +759,7 @@ y_test <- y[-train_indices]
 cv_fit <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 1)
 best_lambda <- cv_fit$lambda.min
 model <- glmnet(X_train, y_train, family = "binomial", alpha = 1, lambda = best_lambda)
-
+model
 # Make predictions
 predictions <- predict(model, X_test, type = "response")
 predicted_classes <- ifelse(predictions > 0.5, 1, 0)
@@ -777,22 +816,19 @@ ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
        y = "Coefficient Value") +
   theme_minimal()
 
+
 ```
 
 # Q5
 
 ```{r}
-# Load necessary libraries
 library(gamair)
 library(ggplot2)
 library(fda)
 
 rm(list = ls())
-# Load the data
 data(gas)
 
-# Extract the spectra and octane ratings
-# Ensure the nir_spectra data is a matrix and transpose it
 
 nir_spectra <- matrix(as.numeric(unlist(gas$NIR)), nrow = 60, byrow = TRUE)
 colnames(nir_spectra) = colnames(gas$NIR)
