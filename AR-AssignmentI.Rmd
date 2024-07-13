@@ -24,7 +24,6 @@ x = seq(0,1, length.out=100)
 
 #x = rnorm(100,0,1)
 # We choose equally spaced notes over the range [0,1]
-
 knots = seq(0,1,length.out=8) # we set this to 8 as the first and last knots will be removed, so this ensures we are left with 6
 
 # Basis functions per Woods formulation
@@ -58,7 +57,6 @@ ggplot(basis_melted, aes(x = x, y = value, color = variable)) +
   geom_line(size = 1) + 
   labs(title = "Wood Cubic Spline Basis",
        x = "x", y = "Basis Function Value", color = "Basis") +
-  #xlim(0, 1) + 
   theme_minimal()
 
 ```
@@ -187,6 +185,8 @@ ggplot(gcv_data, aes(x = lambda, y = gcv)) +
 
 # Question 2
 
+## Tensor Product Spline
+
 ```{r}
 library(gamair)
 library(tidyverse)
@@ -291,7 +291,6 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        color = "Observed medFPQ") +
   theme_minimal()
 
-# Visualize the results without the original data
 brain_data <- brain_data %>% mutate(Fitted = tensor_product_spline_result$fitted_values)
 
 ggplot(brain_data, aes(x = X, y = Y)) +
@@ -313,7 +312,6 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        color = "Observed medFPQ") +
   theme_minimal()
 
-# Create a data frame with original data and fitted values
 plot_data <- data.frame(
   X = brain_data$X,
   Y = brain_data$Y,
@@ -321,13 +319,11 @@ plot_data <- data.frame(
   Fitted = tensor_product_spline_result$fitted_values
 )
 
-# Create a long format of the data for easier plotting
 plot_data_long <- tidyr::pivot_longer(plot_data, 
                                       cols = c(Original, Fitted),
                                       names_to = "Type",
                                       values_to = "Value")
 
-# Change the order of the factors in the Type column to show "Original" first
 plot_data_long$Type <- factor(plot_data_long$Type, levels = c("Original", "Fitted"))
 
 # Create the plot
@@ -343,6 +339,8 @@ ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
   theme(aspect.ratio = 1)
 
 ```
+
+## Thin Plate Spline
 
 ```{r}
 library(gamair)
@@ -454,7 +452,7 @@ ggsave("tps_original_vs_fitted.png", p, width = 12, height = 6)
 
 
 
-## Using mgcv function
+## Tensor Product and Thin Plate Spline: Using mgcv function
 
 ```{r}
 # Load necessary libraries
@@ -521,7 +519,10 @@ ggsave("tps_plot.png", tps_plot, width = 8, height = 6)
 
 ```
 
-# Question 3
+
+# Question 3: GAMs and MARS
+
+## GAM and Logistic Regression
 
 ```{r}
 library(mgcv)
@@ -551,22 +552,19 @@ y_test <- test$Class
 ```
 
 
+## MARS
 
 ```{r}
-# Install and load the necessary package
 library(earth)
-
 
 # Fit the MARS model
 mars_model <- earth(Class ~ ., data = train)
 
 
-# Make predictions on the test data
 y_pred <- predict(mars_model, newdata = X_test, type = "response")
 
-# Convert predictions to binary outcomes
 y_pred_binary <- ifelse(y_pred > 0.5, 1, 0)
-v
+
 # Evaluate the model
 accuracy <- mean(y_pred_binary == y_test)
 cat("Accuracy:", accuracy, "\n")
@@ -574,34 +572,21 @@ cat("Accuracy:", accuracy, "\n")
 # Confusion matrix and classification report
 table(Predicted = y_pred_binary, Actual = y_test)
 
-
 ```
 
 
 ```{r}
-# Install the packages first if not already installed
-# install.packages("earth")
-# install.packages("caret")
-# install.packages("ggplot2")
-
 library(earth)
 library(caret)
 library(ggplot2)
 rm(list = ls())
 
-# Load the dataset
 pulsar_data <- read.csv("Pulsar.csv", header = TRUE, sep = ",")
 
-# Check the structure of the dataset
-str(pulsar_data)
 
 # Define the features (X) and the target (y)
 X <- pulsar_data[, !(names(pulsar_data) %in% c("Class"))]
 y <- pulsar_data$Class
-
-# Verify the dimensions of the features and target
-print(dim(X))
-print(length(y))
 
 # Split the data into training (80%) and testing (20%) sets
 set.seed(0)
@@ -614,9 +599,6 @@ y_test <- y[-trainIndex]
 # Combine X and y for training
 train_data <- data.frame(X_train, target = y_train)
 
-# Check the structure and dimensions of the training data
-str(train_data)
-print(dim(train_data))
 
 # Initialize and fit the MARS model
 mars_model <- earth(target ~ ., data = train_data)
@@ -625,7 +607,6 @@ mars_model <- earth(target ~ ., data = train_data)
 test_data <- data.frame(X_test)
 y_pred_prob <- predict(mars_model, test_data)
 
-# Convert predicted probabilities to class labels
 y_pred <- ifelse(y_pred_prob > 0.5, 1, 0)
 
 # Calculate the confusion matrix
@@ -664,7 +645,7 @@ head(results)
 
 ```
 
-# Q4
+# Question 4: Wavelets
 
 ```{r}
 library(fds)
@@ -676,7 +657,6 @@ library(tidyr)
 
 rm(list = ls())
 
-# Load the phoneme data from fds package
 data(aa)
 data(ao)
 
@@ -759,7 +739,8 @@ y_test <- y[-train_indices]
 cv_fit <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 1)
 best_lambda <- cv_fit$lambda.min
 model <- glmnet(X_train, y_train, family = "binomial", alpha = 1, lambda = best_lambda)
-model
+
+
 # Make predictions
 predictions <- predict(model, X_test, type = "response")
 predicted_classes <- ifelse(predictions > 0.5, 1, 0)
@@ -819,7 +800,7 @@ ggplot(coeff_data, aes(x = Index, y = Coefficient)) +
 
 ```
 
-# Q5
+# Question 5: Functional Data Analysis
 
 ```{r}
 library(gamair)
@@ -841,7 +822,7 @@ nir_basis <- create.bspline.basis(rangeval = c(900, 1700), nbasis = 20)
 # Convert the spectra to functional data object
 nir_fd <- smooth.basis(argvals = seq(900, 1700, by = 2), y = nir_spectra, fdParobj = nir_basis)$fd
 
-# Plot the first few spectra using the built-in plot function
+
 plot(nir_fd, main = "NIR Spectra", xlab = "Wavelength (nm)", ylab = "log(1/R)")
 
 # Get the coefficients of the functional data object
@@ -850,13 +831,11 @@ nir_fd_coefs <- t(eval.fd(seq(900, 1700, by = 2), nir_fd))
 # Fit a linear model using the coefficients
 lm_model <- lm(octane ~ nir_fd_coefs)
 
-# Summarize the model
 summary(lm_model)
 
 # Predict octane ratings
 octane_pred <- predict(lm_model)
 
-# Create a data frame for plotting
 results <- data.frame(Actual = octane, Predicted = octane_pred)
 
 # Plot actual vs predicted values using ggplot
@@ -868,10 +847,8 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
        y = "Predicted Octane Rating") +
   theme_minimal()
 
-# Print the coefficients
 coefficients <- coef(lm_model)
 
-# Create a data frame for the coefficients
 coef_data <- data.frame(Index = 1:length(coefficients), Coefficient = coefficients)
 
 # Plot the coefficients using ggplot
@@ -882,21 +859,15 @@ ggplot(coef_data, aes(x = Index, y = Coefficient)) +
        y = "Coefficient Value") +
   theme_minimal()
 
-# Discuss the model performance
-# The R-squared value and the p-values of the coefficients will give us an idea of the model's performance.
-# A high R-squared value indicates a good fit, while low p-values suggest that the predictors are significant.
-
 ```
 
 
 ```{r}
-# Load necessary libraries
 library(gamair)
 library(ggplot2)
 library(splines)
 rm(list = ls())
 
-# Load the data
 data(gas)
 
 # Extract the spectra and octane ratings
@@ -905,14 +876,10 @@ colnames(nir_spectra) <- colnames(gas$NIR)
 nir_spectra <- t(nir_spectra)  # Transpose to have 401 rows and 60 columns
 octane <- gas$octane
 
-# Define the B-spline basis functions manually
+# Define the B-spline basis functions
 basis_functions <- bs(seq(900, 1700, by = 2), df = 20, degree = 3, intercept = TRUE)
 
-# Check dimensions
-print(dim(nir_spectra))  # Should be 401 x 60
-print(dim(basis_functions))  # Should be 401 x (number of basis functions)
 
-# Corrected basis_expansion function
 basis_expansion <- function(data, basis) {
   expanded_data <- matrix(0, nrow = ncol(basis), ncol = ncol(data))
   for (i in 1:ncol(data)) {
@@ -924,29 +891,22 @@ basis_expansion <- function(data, basis) {
 # Apply basis expansion
 nir_fd_coefs <- basis_expansion(nir_spectra, basis_functions)
 
-# Verify the dimensions of nir_fd_coefs and octane
-print(dim(nir_fd_coefs))
-print(length(octane))
 
-# Convert nir_fd_coefs to a data frame
 nir_fd_coefs_df <- as.data.frame(t(nir_fd_coefs))
 colnames(nir_fd_coefs_df) <- paste0("X", 1:ncol(nir_fd_coefs_df))
 
-# Combine octane and nir_fd_coefs_df into a single data frame
 model_data <- cbind(octane = octane, nir_fd_coefs_df)
 
 # Fit the linear model
 formula <- as.formula(paste("octane ~", paste(colnames(nir_fd_coefs_df), collapse = " + "), "- 1"))
 lm_model <- lm(formula, data = model_data)
 
-# Summarize the model
 summary(lm_model)
 
-# Manual prediction using the fitted coefficients
+# First principles prediction using the fitted coefficients
 fitted_coefficients <- coef(lm_model)
 octane_pred_manual <- as.matrix(nir_fd_coefs_df) %*% fitted_coefficients
 
-# Create a data frame for plotting
 results <- data.frame(Actual = octane, Predicted = octane_pred_manual)
 
 # Plot actual vs predicted values
@@ -958,7 +918,6 @@ ggplot(results, aes(x = Actual, y = Predicted)) +
        y = "Predicted Octane Rating") +
   theme_minimal()
 
-# Print the coefficients
 print(fitted_coefficients)
 
 # Plot all the NIR spectra using ggplot2 with colors
