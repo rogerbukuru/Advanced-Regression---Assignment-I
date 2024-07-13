@@ -282,25 +282,17 @@ tensor_product_spline_result = tensor_product_spline(
 )
 
 
-ggplot(brain_data, aes(x = X, y = Y)) +
-  geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
-  scale_color_viridis_c() +
-  labs(title = "Original Data",
-       x = "X",
-       y = "Y",
-       color = "Observed medFPQ") +
-  theme_minimal()
+# ggplot(brain_data, aes(x = X, y = Y)) +
+#   geom_point(aes(color = medFPQ), size = 2, alpha = 0.6) +
+#   scale_color_viridis_c() +
+#   labs(title = "Original Data",
+#        x = "X",
+#        y = "Y",
+#        color = "Observed medFPQ") +
+#   theme_minimal()
 
 brain_data <- brain_data %>% mutate(Fitted = tensor_product_spline_result$fitted_values)
 
-ggplot(brain_data, aes(x = X, y = Y)) +
-  geom_tile(aes(fill = Fitted)) +
-  scale_fill_viridis_c() +
-  labs(title = "Tensor Product Spline Fit",
-       x = "X",
-       y = "Y",
-       fill = "Fitted medFPQ") +
-  theme_minimal()
 
 # Visualize the observed medFPQ values
 ggplot(brain_data, aes(x = X, y = Y)) +
@@ -311,6 +303,16 @@ ggplot(brain_data, aes(x = X, y = Y)) +
        y = "Y",
        color = "Observed medFPQ") +
   theme_minimal()
+
+ggplot(brain_data, aes(x = X, y = Y)) +
+  geom_tile(aes(fill = Fitted)) +
+  scale_fill_viridis_c() +
+  labs(title = "Tensor Product Spline Fit",
+       x = "X",
+       y = "Y",
+       fill = "Fitted medFPQ") +
+  theme_minimal()
+
 
 plot_data <- data.frame(
   X = brain_data$X,
@@ -327,16 +329,16 @@ plot_data_long <- tidyr::pivot_longer(plot_data,
 plot_data_long$Type <- factor(plot_data_long$Type, levels = c("Original", "Fitted"))
 
 
-ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
-  geom_tile() +
-  facet_wrap(~ Type) +
-  scale_fill_viridis_c() +
-  labs(title = "Tensor Product Original vs Fitted Values",
-       x = "X coordinate",
-       y = "Y coordinate",
-       fill = "medFPQ") +
-  theme_minimal() +
-  theme(aspect.ratio = 1)
+# ggplot(plot_data_long, aes(x = X, y = Y, fill = Value)) +
+#   geom_tile() +
+#   facet_wrap(~ Type) +
+#   scale_fill_viridis_c() +
+#   labs(title = "Tensor Product Original vs Fitted Values",
+#        x = "X coordinate",
+#        y = "Y coordinate",
+#        fill = "medFPQ") +
+#   theme_minimal() +
+#   theme(aspect.ratio = 1)
 
 ```
 
@@ -439,9 +441,7 @@ p = ggplot(plot_data_long, aes(x = X, y = Y, fill = medFPQ)) +
   theme_minimal() +
   theme(aspect.ratio = 1)
 
-print(p)
-ggsave("tps_original_vs_fitted.png", p, width = 12, height = 6)
-
+#print(p)
 ```
 
 
@@ -478,6 +478,8 @@ original_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = medFPQ)) +
        fill = "medFPQ") +
   theme_minimal()
 
+original_plot
+
 tp_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tp)) +
   geom_tile() +
   scale_fill_viridis_c() +
@@ -486,6 +488,8 @@ tp_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tp)) +
        y = "Y coordinate",
        fill = "Fitted medFPQ") +
   theme_minimal()
+
+tp_plot
 
 tps_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tps)) +
   geom_tile() +
@@ -496,6 +500,7 @@ tps_plot <- ggplot(brain_data, aes(x = X, y = Y, fill = Fitted_tps)) +
        fill = "Fitted medFPQ") +
   theme_minimal()
 
+tps_plot
 ```
 
 
@@ -586,10 +591,10 @@ metrics <- data.frame(
   Metric = c("Accuracy", "Sensitivity", "Specificity", "Precision", "F1 Score"),
   Value = c(accuracy, sensitivity, specificity, precision, f1)
 )
-print(metrics)
+#print(metrics)
 
 results <- data.frame(Actual = y_test, Predicted_Prob = y_pred_prob)
-results
+#results
 
 ```
 
