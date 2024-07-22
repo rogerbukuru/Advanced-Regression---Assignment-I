@@ -144,6 +144,7 @@ ggplot(plot_data, aes(x = x, y = y)) +
 
 ```{r}
 
+# Compute GCV as function of lambda
 compute_gcv = function(lambda){
   basis_matrix <- cbind(
   b1(x),
@@ -214,7 +215,8 @@ data("brain")
 brain_data = brain%>%as_tibble()%>%
              select(X,Y, medFPQ)
 
-tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_positions, x_penalty_matrix, y_penalty_matrix, lambda, penalize=FALSE) {
+# Calculate tensor product spline
+tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_positions, x_penalty_matrix, y_penalty_matrix, lambda) {
   
   # Scale x and y
   x_scaled = scale(x)
@@ -238,7 +240,7 @@ tensor_product_spline = function(x,y, response,x_knot_positions, y_knot_position
   se_errors = sqrt(diag(H))
   return (list(fitted_values = fitted_values , se_errors = se_errors))
 }
-
+# Tensor product helper function
 compute_tensor_product = function(A, B){
   m1 = ncol(A)
   m2 = ncol(B)
@@ -378,6 +380,7 @@ create_design_matrix = function(data, knots){
   return (list(X = X, A = A, B = B))
 }
 
+# Compute Thin Plate Spline
 thin_plate_spline = function(data, lambda, num_knots){
   n = nrow(data)
   knot_indices = seq(1, n, length.out = num_knots) 
@@ -406,7 +409,7 @@ thin_plate_spline = function(data, lambda, num_knots){
 
 tps_result = thin_plate_spline(brain_data, 0.5, 10)
 
-head(tps_result$fitted_values)
+#head(tps_result$fitted_values)
 
 brain_data <- brain_data %>% mutate(Fitted = tps_result$fitted_values)
 
@@ -527,19 +530,19 @@ y_train <- train$Class
 X_test <- test[, !names(test) %in% "Class"]
 y_test <- test$Class
 
-# Fit Logistic Regession Model (GLM)
-# #glm_model = glm(Class ~., data = train, family = binomial)
-# glm_pred <- predict(glm_model, newdata = dataTest, type = "response")
-# glm_class <- ifelse(glm_pred > 0.5, 1, 0)
-# glm_confusion <- confusionMatrix(as.factor(glm_class), as.factor(dataTest$Class))
-# glm_confusion
-# 
-# Fit GAM Model
-# gam_model <- gam(Class ~ s(Mean_Integrated) + s(SD) + s(EK) + s(Skewness) + s(Mean_DMSNR_Curve) + s(SD_DMSNR_Curve) + s(EK_DMSNR_Curve) + s(Skewness_DMSNR_Curve), data = training_data, family = binomial)
-# gam_pred <- predict(gam_model, newdata = dataTest, type = "response")
-# gam_class <- ifelse(gam_pred > 0.5, 1, 0)
-# gam_confusion <- confusionMatrix(as.factor(gam_class), as.factor(dataTest$Class))
-# gam_confusion
+#Fit Logistic Regession Model (GLM)
+glm_model = glm(Class ~., data = train, family = binomial)
+glm_pred <- predict(glm_model, newdata = dataTest, type = "response")
+glm_class <- ifelse(glm_pred > 0.5, 1, 0)
+glm_confusion <- confusionMatrix(as.factor(glm_class), as.factor(dataTest$Class))
+glm_confusion
+
+#Fit GAM Model
+gam_model <- gam(Class ~ s(Mean_Integrated) + s(SD) + s(EK) + s(Skewness) + s(Mean_DMSNR_Curve) + s(SD_DMSNR_Curve) + s(EK_DMSNR_Curve) + s(Skewness_DMSNR_Curve), data = training_data, family = binomial)
+gam_pred <- predict(gam_model, newdata = dataTest, type = "response")
+gam_class <- ifelse(gam_pred > 0.5, 1, 0)
+gam_confusion <- confusionMatrix(as.factor(gam_class), as.factor(dataTest$Class))
+gam_confusion
 ```
 
 
@@ -619,11 +622,12 @@ ao_data <- ao$y
 X <- rbind(aa_data, ao_data)
 y <- c(rep(0, nrow(aa_data)), rep(1, nrow(ao_data)))
 
-# Function to apply wavelet transform
+# Wavelet transform function
 apply_wavelet <- function(data, n_coef = 256) {
   next_power_of_2 <- 2^ceiling(log2(length(data)))
   padded_data <- c(data, rep(0, next_power_of_2 - length(data)))
   
+  # Compute Wavelet coefficients
   wt <- wd(padded_data, filter.number = 10, family = "DaubLeAsymm")
   all_levels <- 0:(nlevelsWT(wt) - 1)
   all_coefs <- unlist(lapply(all_levels, function(l) accessD(wt, level = l)))
